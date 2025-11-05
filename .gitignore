@@ -1,0 +1,49 @@
+## Visual Studio temporary files
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio cache
+.vs/
+
+# Visual Studio Code
+.vscode/
+
+# .NET Core
+project.lock.json
+artifacts/
+
+# User-specific files
+appsettings.Development.json
+appsettings.Local.json
+*.local.json
+
+# Secrets
+secrets.json
+*.pfx
+*.key
+
+# Environment variables
+.env
+.env.local
+
+# Test Results
+TestResults/
+*.trx
+*.coverage
+
+# OS files
+.DS_Store
+Thumbs.db
