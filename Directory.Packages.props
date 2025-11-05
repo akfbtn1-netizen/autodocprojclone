@@ -28,6 +28,9 @@
     <!-- Resilience -->
     <PackageVersion Include="Polly" Version="8.4.1" />
     <PackageVersion Include="Polly.Extensions" Version="8.4.1" />
+    
+    <!-- Performance -->
+    <PackageVersion Include="BenchmarkDotNet" Version="0.14.0" />
 
     <!-- Logging -->
     <PackageVersion Include="Serilog" Version="4.0.1" />

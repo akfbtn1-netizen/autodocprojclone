@@ -16,6 +16,7 @@
     <PackageReference Include="Azure.Messaging.ServiceBus" />
     <PackageReference Include="Polly" />
     <PackageReference Include="Polly.Extensions" />
+    <PackageReference Include="BenchmarkDotNet" />
   </ItemGroup>
 
   <ItemGroup>

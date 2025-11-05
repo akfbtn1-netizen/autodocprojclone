@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using Shared.Contracts;
 using System.Diagnostics;
+using Polly;
+using Polly.CircuitBreaker;
 
 namespace Enterprise.Documentation.Shared.BaseAgent;
 
@@ -16,11 +18,12 @@ namespace Enterprise.Documentation.Shared.BaseAgent;
 /// </summary>
 /// <typeparam name="TInput">The input type this agent processes</typeparam>
 /// <typeparam name="TOutput">The output type this agent produces</typeparam>
-public abstract class BaseAgent<TInput, TOutput> : IBaseAgent<TInput, TOutput>, IDisposable
+public abstract class BaseAgent<TInput, TOutput> : IBaseAgent<TInput, TOutput>, IAsyncDisposable, IDisposable
 {
     protected readonly IAgentContext Context;
     protected readonly ILogger Logger;
     private readonly ActivitySource _activitySource;
+    private readonly ResiliencePipeline _circuitBreaker;
 
     public abstract string AgentId { get; }
     public abstract string AgentName { get; }
@@ -36,6 +39,28 @@ public abstract class BaseAgent<TInput, TOutput> : IBaseAgent<TInput, TOutput>, 
         Context = context ?? throw new ArgumentNullException(nameof(context));
         Logger = context.Logger;
         _activitySource = new ActivitySource($"{GetType().Name}-{Version}");
+        
+        // Initialize circuit breaker with enterprise-grade resilience
+        _circuitBreaker = new ResiliencePipelineBuilder()
+            .AddCircuitBreaker(new CircuitBreakerStrategyOptions
+            {
+                FailureRatio = 0.5, // Open circuit when 50% of calls fail
+                SamplingDuration = TimeSpan.FromSeconds(10),
+                MinimumThroughput = 5,
+                BreakDuration = TimeSpan.FromSeconds(30),
+                OnOpened = args =>
+                {
+                    Logger.LogWarning("Circuit breaker opened for agent {AgentName} due to {FailureRatio:P} failure rate", 
+                        AgentName, args.BreakDuration);
+                    return ValueTask.CompletedTask;
+                },
+                OnClosed = args =>
+                {
+                    Logger.LogInformation("Circuit breaker closed for agent {AgentName}", AgentName);
+                    return ValueTask.CompletedTask;
+                }
+            })
+            .Build();
     }
 
     /// <inheritdoc />
@@ -68,8 +93,9 @@ public abstract class BaseAgent<TInput, TOutput> : IBaseAgent<TInput, TOutput>, 
 
             activity?.SetTag("validation.passed", true);
 
-            // Execute the core agent logic
-            var result = await ExecuteInternalAsync(input, cancellationToken);
+            // Execute the core agent logic through circuit breaker
+            var result = await _circuitBreaker.ExecuteAsync(async (ct) => 
+                await ExecuteInternalAsync(input, ct), cancellationToken);
             
             stopwatch.Stop();
             
@@ -212,12 +238,94 @@ public abstract class BaseAgent<TInput, TOutput> : IBaseAgent<TInput, TOutput>, 
     }
 
     /// <summary>
+    /// Executes performance benchmark for this agent.
+    /// Provides standardized performance measurement capabilities.
+    /// </summary>
+    /// <param name="input">Test input for benchmarking</param>
+    /// <param name="iterations">Number of benchmark iterations (default: 100)</param>
+    /// <returns>Performance metrics from benchmark execution</returns>
+    public async Task<PerformanceMetrics> BenchmarkAsync(TInput input, int iterations = 100)
+    {
+        var startMemory = GC.GetTotalMemory(false);
+        var stopwatch = Stopwatch.StartNew();
+        
+        using var activity = _activitySource.StartActivity($"{AgentName}.Benchmark");
+        activity?.SetTag("benchmark.iterations", iterations);
+        
+        try
+        {
+            for (int i = 0; i < iterations; i++)
+            {
+                await ExecuteAsync(input);
+            }
+            
+            stopwatch.Stop();
+            var endMemory = GC.GetTotalMemory(false);
+            
+            var metrics = new PerformanceMetrics
+            {
+                ExecutionTime = stopwatch.Elapsed,
+                MemoryAllocated = Math.Max(0, endMemory - startMemory),
+                Operations = iterations,
+                AgentName = AgentName
+            };
+            
+            LogInformation("Benchmark completed: {Operations} operations in {ElapsedMs}ms, {OpsPerSec:F2} ops/sec",
+                metrics.Operations, metrics.ExecutionTime.TotalMilliseconds, metrics.OperationsPerSecond);
+                
+            activity?.SetTag("benchmark.ops_per_second", metrics.OperationsPerSecond);
+            activity?.SetTag("benchmark.memory_allocated", metrics.MemoryAllocated);
+            
+            return metrics;
+        }
+        catch (Exception ex)
+        {
+            LogError(ex, "Benchmark execution failed after {ElapsedMs}ms", stopwatch.ElapsedMilliseconds);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Asynchronously releases resources used by the agent
+    /// </summary>
+    protected virtual async ValueTask DisposeAsyncCoreAsync()
+    {
+        // Complete any ongoing activities first
+        using var activity = _activitySource?.StartActivity("BaseAgent.Dispose");
+        activity?.SetTag("disposal.type", "async");
+        
+        _activitySource?.Dispose();
+        await Task.CompletedTask; // Placeholder for future async cleanup
+    }
+
+    /// <summary>
+    /// Public async disposal method
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+        await DisposeAsyncCoreAsync();
+        Dispose(false); // Cleanup any remaining synchronous resources
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases resources used by the agent (synchronous version)
+    /// </summary>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _activitySource?.Dispose();
+        }
+    }
+
+    /// <summary>
     /// Disposes resources used by the agent.
     /// Follows proper disposal patterns for activity sources.
     /// </summary>
     public virtual void Dispose()
     {
-        _activitySource?.Dispose();
+        Dispose(true);
         GC.SuppressFinalize(this);
     }
 }
