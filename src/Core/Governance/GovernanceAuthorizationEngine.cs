@@ -146,11 +146,17 @@ public class GovernanceAuthorizationEngine
 
             return result;
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Access denied for agent {AgentId}", agentId);
+            activity?.SetTag("authorization.error", "Access denied");
+            return GovernanceAuthorizationResult.Deny($"Access denied: {ex.Message}");
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Authorization failed for agent {AgentId}", agentId);
+            _logger.LogError(ex, "Unexpected authorization error for agent {AgentId}", agentId);
             activity?.SetTag("authorization.error", ex.Message);
-            return GovernanceAuthorizationResult.Deny($"Authorization error: {ex.Message}");
+            throw; // Re-throw unexpected exceptions
         }
     }
 

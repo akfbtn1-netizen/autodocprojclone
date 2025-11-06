@@ -16,8 +16,7 @@ builder.Services.AddScoped<GovernancePIIDetector>();
 builder.Services.AddScoped<GovernanceAuditLogger>();
 builder.Services.AddScoped<GovernanceAuthorizationEngine>();
 
-// Add FluentValidation for governance request validation
-builder.Services.AddScoped<IValidator<GovernanceQueryRequest>, GovernanceQueryRequestValidator>();
+// FluentValidation will be added when needed for request validation
 
 // Configure OpenTelemetry for governance observability
 builder.Services.AddSingleton<ActivitySource>(provider => 

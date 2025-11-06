@@ -144,9 +144,9 @@ public class GovernanceAuditLogger
                 filter.AgentId, filter.StartDate, filter.EndDate, filter.EventType);
 
             // Simulate audit retrieval (in production, this would be actual database queries)
-            var entries = await SimulateAuditRetrieval(filter, cancellationToken);
+            var entries = await SimulateAuditRetrievalAsync(filter, cancellationToken);
             
-            var totalCount = await GetTotalAuditCount(filter, cancellationToken);
+            var totalCount = await GetTotalAuditCountAsync(filter, cancellationToken);
 
             activity?.SetTag("results.count", entries.Count);
             activity?.SetTag("results.total", totalCount);
@@ -279,7 +279,7 @@ public class GovernanceAuditLogger
     /// Simulates audit entry retrieval for demonstration.
     /// In production, this would query actual storage systems.
     /// </summary>
-    private async Task<IReadOnlyList<GovernanceAuditEntry>> SimulateAuditRetrieval(GovernanceAuditFilter filter, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<GovernanceAuditEntry>> SimulateAuditRetrievalAsync(GovernanceAuditFilter filter, CancellationToken cancellationToken)
     {
         await Task.Delay(10, cancellationToken); // Simulate async database query
         
@@ -291,7 +291,7 @@ public class GovernanceAuditLogger
     /// <summary>
     /// Gets total count of audit entries matching filter.
     /// </summary>
-    private async Task<long> GetTotalAuditCount(GovernanceAuditFilter filter, CancellationToken cancellationToken)
+    private async Task<long> GetTotalAuditCountAsync(GovernanceAuditFilter filter, CancellationToken cancellationToken)
     {
         await Task.Delay(5, cancellationToken); // Simulate async count query
         return 0; // In production, this would return actual count from storage
