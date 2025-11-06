@@ -13,6 +13,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Core\Infrastructure\Core.Infrastructure.csproj" />
+    <ProjectReference Include="..\Core\Governance\Core.Governance.csproj" />
+    <ProjectReference Include="..\Shared\BaseAgent\Shared.BaseAgent.csproj" />
   </ItemGroup>
 
 </Project>

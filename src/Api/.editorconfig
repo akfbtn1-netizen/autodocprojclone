@@ -1,0 +1,6 @@
+root = true
+
+[*.cs]
+# API endpoint exception handling configuration
+# Broad exception handling is appropriate for API endpoints to prevent unhandled exceptions
+dotnet_diagnostic.CA1031.severity = none
