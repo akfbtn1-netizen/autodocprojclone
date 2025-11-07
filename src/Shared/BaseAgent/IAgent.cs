@@ -1,76 +1,45 @@
-using System.Diagnostics;
-
 namespace Enterprise.Documentation.Shared.BaseAgent;
 
 /// <summary>
-/// Defines the contract for all agents in the platform.
+/// Base interface for all agents in the system
 /// </summary>
-public interface IAgent : IDisposable
+/// <typeparam name="TInput">The input type this agent processes</typeparam>
+/// <typeparam name="TOutput">The output type this agent produces</typeparam>
+public interface IBaseAgent<TInput, TOutput>
 {
     /// <summary>
-    /// Main execution method for the agent.
+    /// Unique identifier for this agent instance
     /// </summary>
-    /// <param name="ct">Cancellation token</param>
-    Task ExecuteAsync(CancellationToken ct);
+    string AgentId { get; }
 
     /// <summary>
-    /// Health check to verify agent is operational.
+    /// Execute the agent's primary task
     /// </summary>
-    /// <param name="ct">Cancellation token</param>
-    /// <returns>Health check result</returns>
-    Task<HealthCheckResult> CheckHealthAsync(CancellationToken ct);
+    /// <param name="input">The input data to process</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The processed output</returns>
+    Task<TOutput> ExecuteAsync(TInput input, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets the agent's name for identification.
+    /// Health check for the agent
     /// </summary>
-    string AgentName { get; }
-
-    /// <summary>
-    /// Gets the agent's version.
-    /// </summary>
-    string Version { get; }
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>True if the agent is healthy</returns>
+    Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>
-/// Represents the result of a health check.
+/// Context interface for agent execution
 /// </summary>
-public class HealthCheckResult
+public interface IAgentContext
 {
     /// <summary>
-    /// Gets or sets whether the agent is healthy.
+    /// Unique identifier for the execution context
     /// </summary>
-    public bool IsHealthy { get; set; }
+    string ContextId { get; }
 
     /// <summary>
-    /// Gets or sets the health check description.
+    /// Additional properties for the context
     /// </summary>
-    public string Description { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Gets or sets the exception if health check failed.
-    /// </summary>
-    public Exception? Exception { get; set; }
-
-    /// <summary>
-    /// Gets or sets additional health data.
-    /// </summary>
-    public Dictionary<string, object> Data { get; set; } = new();
-
-    /// <summary>
-    /// Creates a healthy result.
-    /// </summary>
-    public static HealthCheckResult Healthy(string description) =>
-        new() { IsHealthy = true, Description = description };
-
-    /// <summary>
-    /// Creates an unhealthy result.
-    /// </summary>
-    public static HealthCheckResult Unhealthy(string description, Exception? exception = null) =>
-        new() { IsHealthy = false, Description = description, Exception = exception };
-
-    /// <summary>
-    /// Creates an unhealthy result with additional data.
-    /// </summary>
-    public static HealthCheckResult Unhealthy(string description, Dictionary<string, object> data) =>
-        new() { IsHealthy = false, Description = description, Data = data };
+    Dictionary<string, object> Properties { get; }
 }

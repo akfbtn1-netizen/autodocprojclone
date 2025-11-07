@@ -1,10 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Core.Infrastructure.Persistence;
-using Shared.Contracts.Interfaces;
+using Enterprise.Documentation.Core.Infrastructure.Persistence;
+using Enterprise.Documentation.Core.Application.Interfaces;
+using Enterprise.Documentation.Core.Infrastructure.Persistence.Repositories;
 
-namespace Core.Infrastructure.Extensions;
+namespace Enterprise.Documentation.Core.Infrastructure.Extensions;
 
 /// <summary>
 /// Extension methods for configuring infrastructure services in the dependency injection container.
@@ -55,9 +56,15 @@ public static class ServiceCollectionExtensions
         // Register DbContext as the base context for repositories
         services.AddScoped<DbContext>(provider => provider.GetRequiredService<DocumentationDbContext>());
 
-        // Repository pattern registration
-        services.AddScoped(typeof(IRepository<,>), typeof(Repository<,>));
-        services.AddScoped<IUnitOfWork, UnitOfWork>();
+        // Repository registrations
+        services.AddScoped<IDocumentRepository, DocumentRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<ITemplateRepository, TemplateRepository>();
+        services.AddScoped<IVersionRepository, VersionRepository>();
+        services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+        
+        // Unit of Work registration
+        services.AddScoped<IUnitOfWork, SimpleUnitOfWork>();
 
         return services;
     }

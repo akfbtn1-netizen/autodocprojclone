@@ -1,228 +1,388 @@
-using Core.Domain.ValueObjects;
 
-namespace Core.Domain.Entities;
+using Enterprise.Documentation.Core.Domain.ValueObjects;
+using Enterprise.Documentation.Core.Domain.Events;
+using Enterprise.Documentation.Core.Domain.Services;
+
+namespace Enterprise.Documentation.Core.Domain.Entities;
 
 /// <summary>
-/// Document entity representing a single document in the documentation platform.
-/// Contains document metadata, content references, and approval workflow information.
+/// Document entity representing a document in the enterprise documentation platform.
+/// Contains document metadata, content, versioning, and approval workflow information.
+/// Implements domain business rules and raises domain events for state changes.
 /// </summary>
-public class Document : BaseEntity
+public class Document : BaseEntity<DocumentId>
 {
     /// <summary>
     /// Document title (required).
     /// </summary>
-    public string Title { get; set; } = string.Empty;
+    public string Title { get; private set; }
 
     /// <summary>
     /// Document description or summary.
     /// </summary>
-    public string? Description { get; set; }
+    public string? Description { get; private set; }
 
     /// <summary>
     /// Document category for organization and filtering.
     /// </summary>
-    public string Category { get; set; } = string.Empty;
+    public string Category { get; private set; }
 
     /// <summary>
     /// Document tags for search and categorization.
     /// </summary>
-    public List<string> Tags { get; set; } = new();
+    public List<string> Tags { get; private set; }
 
     /// <summary>
-    /// Physical name/identifier for the document.
-    /// Used for file system storage and external references.
+    /// Template ID if this document was generated from a template.
     /// </summary>
-    public PhysicalName PhysicalName { get; set; } = PhysicalName.Empty;
+    public TemplateId? TemplateId { get; private set; }
 
     /// <summary>
     /// Current approval status of the document.
     /// </summary>
-    public ApprovalStatus ApprovalStatus { get; set; } = ApprovalStatus.Draft;
+    public ApprovalStatus ApprovalStatus { get; private set; }
+
+    /// <summary>
+    /// Security classification of the document.
+    /// </summary>
+    public SecurityClassification SecurityClassification { get; private set; }
 
     /// <summary>
     /// Document version number.
     /// </summary>
-    public string Version { get; set; } = "1.0";
+    public string DocumentVersion { get; private set; }
 
     /// <summary>
     /// Document content type (markdown, html, pdf, etc.).
     /// </summary>
-    public string ContentType { get; set; } = "markdown";
+    public string ContentType { get; private set; }
 
     /// <summary>
-    /// Document content or reference to external storage.
-    /// For large documents, this might be a storage path.
+    /// Document content (may be truncated for large documents).
     /// </summary>
-    public string? Content { get; set; }
+    public string? Content { get; private set; }
 
     /// <summary>
-    /// Document size in bytes.
+    /// Size of the document in bytes.
     /// </summary>
-    public long SizeInBytes { get; set; }
+    public long? SizeBytes { get; private set; }
 
     /// <summary>
-    /// Document language code (en, es, fr, etc.).
+    /// Full path or URL to the document storage location.
     /// </summary>
-    public string Language { get; set; } = "en";
+    public string? StoragePath { get; private set; }
 
     /// <summary>
-    /// When the document was last published.
+    /// Whether the document contains PII (determined by governance scan).
     /// </summary>
-    public DateTime? PublishedAt { get; set; }
+    public bool ContainsPII { get; private set; }
 
     /// <summary>
-    /// Who published the document.
+    /// Document status (Draft, Published, Archived, etc.).
     /// </summary>
-    public string? PublishedBy { get; set; }
+    public DocumentStatus Status { get; private set; }
 
     /// <summary>
-    /// Document expiration date (if applicable).
+    /// When the document was published (if applicable).
     /// </summary>
-    public DateTime? ExpiresAt { get; set; }
+    public DateTime? PublishedAt { get; private set; }
 
     /// <summary>
-    /// Whether this document is publicly accessible.
+    /// Related document IDs.
     /// </summary>
-    public bool IsPublic { get; set; }
+    public List<DocumentId> RelatedDocuments { get; private set; }
 
-    /// <summary>
-    /// Security classification level.
-    /// </summary>
-    public SecurityClassification SecurityLevel { get; set; } = SecurityClassification.Internal;
-
-    /// <summary>
-    /// Parent document ID for hierarchical organization.
-    /// </summary>
-    public Guid? ParentDocumentId { get; set; }
-
-    /// <summary>
-    /// Navigation property to parent document.
-    /// </summary>
-    public Document? ParentDocument { get; set; }
-
-    /// <summary>
-    /// Navigation property to child documents.
-    /// </summary>
-    public List<Document> ChildDocuments { get; set; } = new();
-
-    /// <summary>
-    /// Document access permissions.
-    /// </summary>
-    public List<DocumentPermission> Permissions { get; set; } = new();
-
-    /// <summary>
-    /// Document change history.
-    /// </summary>
-    public List<DocumentChange> Changes { get; set; } = new();
-
-    /// <summary>
-    /// Publishes the document, updating status and timestamps.
-    /// </summary>
-    /// <param name="publishedBy">Who is publishing the document</param>
-    public void Publish(string publishedBy)
+    // Private constructor for EF Core
+    private Document() : base() 
     {
-        ApprovalStatus = Core.Domain.ValueObjects.ApprovalStatus.Approved(publishedBy);
-        PublishedAt = DateTime.UtcNow;
-        PublishedBy = publishedBy;
-        UpdateAuditInfo(publishedBy);
+        Title = string.Empty;
+        Category = string.Empty;
+        Tags = new List<string>();
+        ApprovalStatus = ApprovalStatus.NotRequired();
+        SecurityClassification = SecurityClassification.Internal(UserId.ForTesting());
+        DocumentVersion = "1.0";
+        ContentType = "markdown";
+        Status = DocumentStatus.Draft;
+        RelatedDocuments = new List<DocumentId>();
     }
 
     /// <summary>
-    /// Archives the document, removing it from active use.
+    /// Creates a new document.
     /// </summary>
-    /// <param name="archivedBy">Who is archiving the document</param>
-    public void Archive(string archivedBy)
+    public Document(
+        DocumentId id,
+        string title,
+        string category,
+        SecurityClassification securityClassification,
+        UserId createdBy,
+        string? description = null,
+        List<string>? tags = null,
+        TemplateId? templateId = null,
+        string contentType = "markdown") : base(id, createdBy)
     {
-        ApprovalStatus = Core.Domain.ValueObjects.ApprovalStatus.Archived(archivedBy);
-        UpdateAuditInfo(archivedBy);
-    }
-
-    /// <summary>
-    /// Updates the document content and increments version.
-    /// </summary>
-    /// <param name="newContent">New document content</param>
-    /// <param name="updatedBy">Who is updating the document</param>
-    /// <param name="changeDescription">Description of the changes made</param>
-    public void UpdateContent(string newContent, string updatedBy, string? changeDescription = null)
-    {
-        var oldContent = Content;
-        Content = newContent;
-        SizeInBytes = System.Text.Encoding.UTF8.GetByteCount(newContent ?? string.Empty);
+        // Validate all parameters using domain service
+        DocumentValidationService.ValidateDocumentCreation(title, category, securityClassification, createdBy);
+        DocumentValidationService.ValidateContentType(contentType);
         
-        // Increment version (simple versioning - could be more sophisticated)
-        if (Version.Contains('.'))
-        {
-            var parts = Version.Split('.');
-            if (parts.Length >= 2 && int.TryParse(parts[1], out var minor))
-            {
-                Version = $"{parts[0]}.{minor + 1}";
-            }
-        }
+        Title = title;
+        Category = category;
+        Description = description;
+        Tags = tags ?? new List<string>();
+        TemplateId = templateId;
+        SecurityClassification = securityClassification;
+        ContentType = contentType;
+        
+        // Default values
+        ApprovalStatus = ApprovalStatus.NotRequired();
+        DocumentVersion = "1.0";
+        Status = DocumentStatus.Draft;
+        RelatedDocuments = new List<DocumentId>();
+        ContainsPII = false;
 
-        // Record the change
-        Changes.Add(new DocumentChange
-        {
-            Id = Guid.NewGuid(),
-            DocumentId = Id,
-            ChangeType = DocumentChangeType.ContentUpdate,
-            Description = changeDescription ?? "Content updated",
-            OldValue = oldContent,
-            NewValue = newContent,
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = updatedBy
-        });
-
-        // Reset approval status for review
-        if (ApprovalStatus.Status == ApprovalStatusType.Approved)
-        {
-            ApprovalStatus = Core.Domain.ValueObjects.ApprovalStatus.PendingReview(updatedBy, "Content updated - requires re-approval");
-        }
-
-        UpdateAuditInfo(updatedBy);
+        // Raise domain event
+        AddDomainEvent(new DocumentCreatedEvent(id, title, category, createdBy));
     }
 
     /// <summary>
-    /// Adds a permission for the document.
+    /// Updates the document content and metadata.
     /// </summary>
-    /// <param name="userId">User or role ID</param>
-    /// <param name="permissionType">Type of permission to grant</param>
-    /// <param name="grantedBy">Who is granting the permission</param>
-    public void GrantPermission(string userId, DocumentPermissionType permissionType, string grantedBy)
+    public void UpdateContent(
+        string? content, 
+        long? sizeBytes, 
+        string? storagePath,
+        bool containsPII,
+        UserId updatedBy)
     {
-        var existingPermission = Permissions.FirstOrDefault(p => p.UserId == userId);
-        if (existingPermission != null)
-        {
-            existingPermission.PermissionType = permissionType;
-            existingPermission.UpdateAuditInfo(grantedBy);
-        }
-        else
-        {
-            Permissions.Add(new DocumentPermission
-            {
-                Id = Guid.NewGuid(),
-                DocumentId = Id,
-                UserId = userId,
-                PermissionType = permissionType,
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = grantedBy,
-                UpdatedAt = DateTime.UtcNow,
-                UpdatedBy = grantedBy
-            });
-        }
-
-        UpdateAuditInfo(grantedBy);
+        Content = content;
+        SizeBytes = sizeBytes;
+        StoragePath = storagePath;
+        ContainsPII = containsPII;
+        
+        UpdateModificationTracking(updatedBy);
+        AddDomainEvent(new DocumentContentUpdatedEvent(Id, updatedBy));
     }
 
     /// <summary>
-    /// Checks if a user has a specific permission for this document.
+    /// Updates document metadata (title, description, tags, etc.).
     /// </summary>
-    /// <param name="userId">User ID to check</param>
-    /// <param name="permissionType">Permission type to check</param>
-    /// <returns>True if the user has the permission</returns>
-    public bool HasPermission(string userId, DocumentPermissionType permissionType)
+    public void UpdateMetadata(
+        string? title = null,
+        string? description = null,
+        string? category = null,
+        List<string>? tags = null,
+        UserId? updatedBy = null)
     {
-        return Permissions.Any(p => p.UserId == userId && 
-                                  (p.PermissionType == permissionType || 
-                                   p.PermissionType == DocumentPermissionType.FullControl));
+        if (updatedBy == null)
+            throw new ArgumentNullException(nameof(updatedBy));
+
+        if (!string.IsNullOrWhiteSpace(title))
+            Title = title;
+
+        if (description != null)
+            Description = description;
+
+        if (!string.IsNullOrWhiteSpace(category))
+            Category = category;
+
+        if (tags != null)
+            Tags = new List<string>(tags);
+
+        UpdateModificationTracking(updatedBy);
+        AddDomainEvent(new DocumentMetadataUpdatedEvent(Id, updatedBy));
+    }
+
+    /// <summary>
+    /// Updates the approval status of the document.
+    /// Implements business rules for approval workflow transitions.
+    /// </summary>
+    public void UpdateApprovalStatus(ApprovalStatus newStatus, UserId updatedBy)
+    {
+        DocumentValidationService.ValidateApprovalTransition(ApprovalStatus, newStatus);
+
+        var previousStatus = ApprovalStatus;
+        ApprovalStatus = newStatus;
+        
+        UpdateModificationTracking(updatedBy);
+        AddDomainEvent(new DocumentApprovalStatusChangedEvent(Id, previousStatus.Status, newStatus.Status, updatedBy));
+    }
+
+    /// <summary>
+    /// Publishes the document.
+    /// Business rule: Document must be approved before publishing.
+    /// </summary>
+    public void Publish(UserId publishedBy)
+    {
+        DocumentValidationService.ValidateCanPublish(this);
+
+        Status = DocumentStatus.Published;
+        PublishedAt = DateTime.UtcNow;
+        
+        UpdateModificationTracking(publishedBy);
+        AddDomainEvent(new DocumentPublishedEvent(Id, publishedBy));
+    }
+
+    /// <summary>
+    /// Archives the document.
+    /// </summary>
+    public void Archive(UserId archivedBy)
+    {
+        DocumentValidationService.ValidateCanArchive(this);
+
+        Status = DocumentStatus.Archived;
+        
+        UpdateModificationTracking(archivedBy);
+        AddDomainEvent(new DocumentArchivedEvent(Id, archivedBy));
+    }
+
+    /// <summary>
+    /// Updates the document title.
+    /// </summary>
+    public void UpdateTitle(string title, UserId updatedBy)
+    {
+        DocumentValidationService.ValidateNotArchived(this);
+        DocumentValidationService.ValidateTitle(title);
+
+        Title = title;
+        UpdateModificationTracking(updatedBy);
+        AddDomainEvent(new DocumentMetadataUpdatedEvent(Id, updatedBy));
+    }
+
+    /// <summary>
+    /// Updates the document category.
+    /// </summary>
+    public void UpdateCategory(string category, UserId updatedBy)
+    {
+        DocumentValidationService.ValidateNotArchived(this);
+        DocumentValidationService.ValidateCategory(category);
+
+        Category = category;
+        UpdateModificationTracking(updatedBy);
+        AddDomainEvent(new DocumentMetadataUpdatedEvent(Id, updatedBy));
+    }
+
+    /// <summary>
+    /// Updates the document description.
+    /// </summary>
+    public void UpdateDescription(string? description, UserId updatedBy)
+    {
+        DocumentValidationService.ValidateNotArchived(this);
+
+        Description = description;
+        UpdateModificationTracking(updatedBy);
+        AddDomainEvent(new DocumentMetadataUpdatedEvent(Id, updatedBy));
+    }
+
+    /// <summary>
+    /// Updates the document tags.
+    /// </summary>
+    public void UpdateTags(List<string> tags, UserId updatedBy)
+    {
+        DocumentValidationService.ValidateNotArchived(this);
+
+        Tags = tags ?? new List<string>();
+        UpdateModificationTracking(updatedBy);
+        AddDomainEvent(new DocumentMetadataUpdatedEvent(Id, updatedBy));
+    }
+
+    /// <summary>
+    /// Updates the document content type.
+    /// </summary>
+    public void UpdateContentType(string contentType, UserId updatedBy)
+    {
+        DocumentValidationService.ValidateNotArchived(this);
+        DocumentValidationService.ValidateContentType(contentType);
+
+        ContentType = contentType;
+        UpdateModificationTracking(updatedBy);
+        AddDomainEvent(new DocumentMetadataUpdatedEvent(Id, updatedBy));
+    }
+
+    /// <summary>
+    /// Checks if a user can modify this document.
+    /// Business rules: Only creators, admins, or users with appropriate roles can modify.
+    /// </summary>
+    public bool CanUserModifyDocument(UserId userId, UserRole userRole)
+    {
+        return DocumentBusinessRules.CanUserModifyDocument(this, userId, userRole);
+    }
+
+    /// <summary>
+    /// Checks if a user can approve this document.
+    /// Business rules: Only users with approve permissions and sufficient security clearance.
+    /// </summary>
+    public bool CanUserApproveDocument(UserId userId, UserRole userRole)
+    {
+        return DocumentBusinessRules.CanUserApproveDocument(this, userId, userRole);
+    }
+
+    /// <summary>
+    /// Approves the document.
+    /// </summary>
+    public void Approve(UserId approvedBy, string? comments = null)
+    {
+        if (Status != DocumentStatus.UnderReview)
+            throw new InvalidOperationException("Document must be under review to be approved");
+
+        Status = DocumentStatus.Published;
+        PublishedAt = DateTime.UtcNow;
+        ApprovalStatus = ApprovalStatus.Approved(approvedBy, comments);
+        
+        UpdateModificationTracking(approvedBy);
+        AddDomainEvent(new DocumentApprovalStatusChangedEvent(Id, "UnderReview", "Approved", approvedBy));
+        AddDomainEvent(new DocumentPublishedEvent(Id, approvedBy));
+    }
+
+    /// <summary>
+    /// Adds a related document.
+    /// </summary>
+    public void AddRelatedDocument(DocumentId relatedDocumentId, UserId updatedBy)
+    {
+        DocumentValidationService.ValidateRelatedDocument(Id, relatedDocumentId);
+
+        if (!RelatedDocuments.Contains(relatedDocumentId))
+        {
+            RelatedDocuments.Add(relatedDocumentId);
+            UpdateModificationTracking(updatedBy);
+            AddDomainEvent(new DocumentRelationAddedEvent(Id, relatedDocumentId, updatedBy));
+        }
+    }
+
+    /// <summary>
+    /// Removes a related document.
+    /// </summary>
+    public void RemoveRelatedDocument(DocumentId relatedDocumentId, UserId updatedBy)
+    {
+        if (RelatedDocuments.Remove(relatedDocumentId))
+        {
+            UpdateModificationTracking(updatedBy);
+            AddDomainEvent(new DocumentRelationRemovedEvent(Id, relatedDocumentId, updatedBy));
+        }
+    }
+
+    /// <summary>
+    /// Updates the security classification of the document.
+    /// Business rule: Can only downgrade classification levels.
+    /// </summary>
+    public void UpdateSecurityClassification(SecurityClassification newClassification, UserId updatedBy)
+    {
+        DocumentValidationService.ValidateSecurityClassificationChange(SecurityClassification, newClassification);
+
+        var previousClassification = SecurityClassification;
+        SecurityClassification = newClassification;
+        
+        UpdateModificationTracking(updatedBy);
+        AddDomainEvent(new DocumentSecurityClassificationChangedEvent(Id, previousClassification.Level, newClassification.Level, updatedBy));
     }
 }
+
+/// <summary>
+/// Document status enumeration.
+/// </summary>
+public enum DocumentStatus
+{
+    Draft,
+    UnderReview,
+    Published,
+    Archived
+}
+

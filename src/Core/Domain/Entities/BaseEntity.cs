@@ -1,141 +1,196 @@
-using Shared.Contracts.Interfaces;
 
-namespace Core.Domain.Entities;
+using Enterprise.Documentation.Core.Domain.ValueObjects;
+
+
+namespace Enterprise.Documentation.Core.Domain.Entities;
 
 /// <summary>
-/// Base entity implementation providing common properties and functionality.
-/// All domain entities should inherit from this base class to ensure consistency.
-/// Implements IEntity interface with Guid primary keys and audit tracking.
+/// Base class for all domain entities in the Enterprise Documentation Platform.
+/// Provides common functionality for entity identification, auditing, and domain events.
 /// </summary>
-public abstract class BaseEntity : IEntity
+/// <typeparam name="TId">The type of the entity's strongly-typed identifier</typeparam>
+public abstract class BaseEntity<TId> where TId : StronglyTypedId<TId>
 {
-    /// <inheritdoc />
-    public Guid Id { get; set; } = Guid.NewGuid();
-
-    /// <inheritdoc />
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-    /// <inheritdoc />
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-
-    /// <inheritdoc />
-    public string CreatedBy { get; set; } = string.Empty;
-
-    /// <inheritdoc />
-    public string UpdatedBy { get; set; } = string.Empty;
-
-    /// <inheritdoc />
-    public byte[]? RowVersion { get; set; }
+    private readonly List<IDomainEvent> _domainEvents = new();
 
     /// <summary>
-    /// Whether this entity has been soft deleted.
-    /// Soft deleted entities are not returned in normal queries.
+    /// The unique identifier for this entity.
     /// </summary>
-    public bool IsDeleted { get; set; }
+    public TId Id { get; protected set; } = default!;
 
     /// <summary>
-    /// When this entity was soft deleted (if applicable).
+    /// When this entity was created.
     /// </summary>
-    public DateTime? DeletedAt { get; set; }
+    public DateTime CreatedAt { get; protected set; }
 
     /// <summary>
-    /// Who soft deleted this entity (if applicable).
+    /// When this entity was last modified.
     /// </summary>
-    public string? DeletedBy { get; set; }
+    public DateTime ModifiedAt { get; protected set; }
 
     /// <summary>
-    /// Updates the entity's audit information.
-    /// Call this method whenever the entity is modified.
+    /// Who created this entity.
     /// </summary>
-    /// <param name="updatedBy">Who is making the update</param>
-    public virtual void UpdateAuditInfo(string updatedBy)
+    public UserId CreatedBy { get; protected set; } = default!;
+
+    /// <summary>
+    /// Who last modified this entity.
+    /// </summary>
+    public UserId ModifiedBy { get; protected set; } = default!;
+
+    /// <summary>
+    /// Version number for optimistic concurrency control.
+    /// </summary>
+    public int Version { get; protected set; }
+
+    /// <summary>
+    /// Whether this entity has been deleted (soft delete).
+    /// </summary>
+    public bool IsDeleted { get; protected set; }
+
+    /// <summary>
+    /// When this entity was deleted (if applicable).
+    /// </summary>
+    public DateTime? DeletedAt { get; protected set; }
+
+    /// <summary>
+    /// Who deleted this entity (if applicable).
+    /// </summary>
+    public UserId? DeletedBy { get; protected set; }
+
+    protected BaseEntity(TId id, UserId createdBy)
     {
-        UpdatedAt = DateTime.UtcNow;
-        UpdatedBy = updatedBy;
+        Id = id ?? throw new ArgumentNullException(nameof(id));
+        CreatedBy = createdBy ?? throw new ArgumentNullException(nameof(createdBy));
+        CreatedAt = DateTime.UtcNow;
+        ModifiedAt = DateTime.UtcNow;
+        ModifiedBy = createdBy;
+        Version = 1;
+        IsDeleted = false;
+    }
+
+    // Required for EF Core
+    protected BaseEntity() { }
+
+    /// <summary>
+    /// Domain events that have been raised by this entity.
+    /// Used for publishing events after successful persistence.
+    /// </summary>
+    public IReadOnlyList<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
+
+    /// <summary>
+    /// Adds a domain event to be published after the entity is persisted.
+    /// </summary>
+    protected void AddDomainEvent(IDomainEvent domainEvent)
+    {
+        _domainEvents.Add(domainEvent);
     }
 
     /// <summary>
-    /// Marks the entity as soft deleted.
-    /// The entity will remain in the database but won't appear in normal queries.
+    /// Clears all domain events. Called after events have been published.
     /// </summary>
-    /// <param name="deletedBy">Who is deleting the entity</param>
-    public virtual void SoftDelete(string deletedBy)
+    public void ClearDomainEvents()
     {
+        _domainEvents.Clear();
+    }
+
+    /// <summary>
+    /// Updates the modification tracking fields.
+    /// Should be called whenever the entity is modified.
+    /// </summary>
+    protected void UpdateModificationTracking(UserId modifiedBy)
+    {
+        ModifiedBy = modifiedBy ?? throw new ArgumentNullException(nameof(modifiedBy));
+        ModifiedAt = DateTime.UtcNow;
+        Version++;
+    }
+
+    /// <summary>
+    /// Marks this entity as deleted (soft delete).
+    /// The entity remains in the database but is marked as deleted.
+    /// </summary>
+    public virtual void Delete(UserId deletedBy)
+    {
+        if (IsDeleted)
+            throw new InvalidOperationException("Entity is already deleted");
+
         IsDeleted = true;
         DeletedAt = DateTime.UtcNow;
-        DeletedBy = deletedBy;
-        UpdateAuditInfo(deletedBy);
+        DeletedBy = deletedBy ?? throw new ArgumentNullException(nameof(deletedBy));
+        UpdateModificationTracking(deletedBy);
+        
+        AddDomainEvent(new EntityDeletedEvent(Id.ToString(), GetType().Name, deletedBy.ToString()));
     }
 
     /// <summary>
-    /// Restores a soft deleted entity.
+    /// Restores a soft-deleted entity.
     /// </summary>
-    /// <param name="restoredBy">Who is restoring the entity</param>
-    public virtual void Restore(string restoredBy)
+    public virtual void Restore(UserId restoredBy)
     {
+        if (!IsDeleted)
+            throw new InvalidOperationException("Entity is not deleted");
+
         IsDeleted = false;
         DeletedAt = null;
         DeletedBy = null;
-        UpdateAuditInfo(restoredBy);
+        UpdateModificationTracking(restoredBy);
+        
+        AddDomainEvent(new EntityRestoredEvent(Id.ToString(), GetType().Name, restoredBy.ToString()));
     }
 
-    /// <summary>
-    /// Determines equality based on the entity ID.
-    /// Two entities are equal if they have the same ID and are not transient.
-    /// </summary>
     public override bool Equals(object? obj)
     {
-        if (obj is not BaseEntity other)
+        if (obj is not BaseEntity<TId> other)
             return false;
 
         if (ReferenceEquals(this, other))
             return true;
 
-        if (IsTransient() || other.IsTransient())
-            return false;
-
-        return Id == other.Id;
+        return Id.Equals(other.Id);
     }
 
-    /// <summary>
-    /// Gets the hash code based on the entity ID.
-    /// </summary>
     public override int GetHashCode()
     {
-        return IsTransient() ? base.GetHashCode() : Id.GetHashCode();
+        return Id.GetHashCode();
     }
 
-    /// <summary>
-    /// Returns a string representation of the entity.
-    /// </summary>
-    public override string ToString()
+    public static bool operator ==(BaseEntity<TId>? left, BaseEntity<TId>? right)
     {
-        return $"{GetType().Name} [Id={Id}]";
+        return Equals(left, right);
     }
 
-    /// <summary>
-    /// Checks if this entity is transient (not yet persisted).
-    /// A transient entity has a default Guid value.
-    /// </summary>
-    /// <returns>True if the entity is transient, false otherwise</returns>
-    public bool IsTransient()
+    public static bool operator !=(BaseEntity<TId>? left, BaseEntity<TId>? right)
     {
-        return Id == Guid.Empty;
+        return !Equals(left, right);
     }
+}
 
-    /// <summary>
-    /// Equality operator overload.
-    /// </summary>
-    public static bool operator ==(BaseEntity? left, BaseEntity? right)
-    {
-        return left?.Equals(right) ?? right is null;
-    }
+/// <summary>
+/// Interface for domain events that can be raised by entities.
+/// </summary>
+public interface IDomainEvent : MediatR.INotification
+{
+    Guid EventId { get; }
+    DateTime OccurredAt { get; }
+    string EventType { get; }
+}
 
-    /// <summary>
-    /// Inequality operator overload.
-    /// </summary>
-    public static bool operator !=(BaseEntity? left, BaseEntity? right)
-    {
-        return !(left == right);
-    }
+/// <summary>
+/// Domain event raised when an entity is deleted.
+/// </summary>
+public record EntityDeletedEvent(string EntityId, string EntityType, string DeletedBy) : IDomainEvent
+{
+    public Guid EventId { get; } = Guid.NewGuid();
+    public DateTime OccurredAt { get; } = DateTime.UtcNow;
+    public string EventType { get; } = nameof(EntityDeletedEvent);
+}
+
+/// <summary>
+/// Domain event raised when an entity is restored from deletion.
+/// </summary>
+public record EntityRestoredEvent(string EntityId, string EntityType, string RestoredBy) : IDomainEvent
+{
+    public Guid EventId { get; } = Guid.NewGuid();
+    public DateTime OccurredAt { get; } = DateTime.UtcNow;
+    public string EventType { get; } = nameof(EntityRestoredEvent);
 }

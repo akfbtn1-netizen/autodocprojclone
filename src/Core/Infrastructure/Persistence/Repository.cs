@@ -1,18 +1,17 @@
 using Microsoft.EntityFrameworkCore;
-using Shared.Contracts.Interfaces;
 using System.Linq.Expressions;
 
-namespace Core.Infrastructure.Persistence;
+namespace Enterprise.Documentation.Core.Infrastructure.Persistence;
 
 /// <summary>
 /// Generic Entity Framework repository implementation.
 /// Provides comprehensive CRUD operations with async support and flexible querying.
 /// Implements the repository pattern with proper separation of concerns.
 /// </summary>
-/// <typeparam name="TEntity">Entity type that implements IEntity</typeparam>
+/// <typeparam name="TEntity">Entity type</typeparam>
 /// <typeparam name="TKey">Primary key type</typeparam>
-public class Repository<TEntity, TKey> : IRepository<TEntity, TKey> 
-    where TEntity : class, IEntity<TKey>
+public abstract class Repository<TEntity, TKey> 
+    where TEntity : class
 {
     protected readonly DbContext Context;
     protected readonly DbSet<TEntity> DbSet;
@@ -169,19 +168,3 @@ public class Repository<TEntity, TKey> : IRepository<TEntity, TKey>
     }
 }
 
-/// <summary>
-/// Convenience repository implementation for entities with Guid primary keys.
-/// Most domain entities should use this repository type.
-/// </summary>
-/// <typeparam name="TEntity">Entity type that implements IEntity</typeparam>
-public class Repository<TEntity> : Repository<TEntity, Guid>, IRepository<TEntity, Guid>
-    where TEntity : class, IEntity<Guid>
-{
-    /// <summary>
-    /// Initializes a new repository with the specified database context.
-    /// </summary>
-    /// <param name="context">Database context</param>
-    public Repository(DbContext context) : base(context)
-    {
-    }
-}

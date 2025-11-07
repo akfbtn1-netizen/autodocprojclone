@@ -1,8 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using Shared.Contracts;
-using System.Diagnostics;
-using Polly;
-using Polly.CircuitBreaker;
+﻿using System.Diagnostics;
 
 namespace Enterprise.Documentation.Shared.BaseAgent;
 
