@@ -1,0 +1,745 @@
+﻿{
+    "Scores":  {
+                   "ProjectStructure":  {
+                                            "Score":  62,
+                                            "MaxScore":  100,
+                                            "Percentage":  62
+                                        },
+                   "Security":  {
+                                    "Score":  100,
+                                    "MaxScore":  100,
+                                    "Percentage":  100
+                                },
+                   "Performance":  {
+                                       "Score":  76,
+                                       "MaxScore":  100,
+                                       "Percentage":  76
+                                   },
+                   "Testing":  {
+                                   "Score":  30,
+                                   "MaxScore":  100,
+                                   "Percentage":  30
+                               },
+                   "Documentation":  {
+                                         "Score":  70,
+                                         "MaxScore":  100,
+                                         "Percentage":  70
+                                     },
+                   "Maintainability":  {
+                                           "Score":  70,
+                                           "MaxScore":  100,
+                                           "Percentage":  70
+                                       },
+                   "CodeQuality":  {
+                                       "Score":  34,
+                                       "MaxScore":  100,
+                                       "Percentage":  34
+                                   }
+               },
+    "Timestamp":  "20251106-230743",
+    "ProjectRoot":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2",
+    "Metrics":  {
+
+                },
+    "Recommendations":  [
+
+                        ],
+    "Issues":  {
+                   "High":  [
+                                {
+                                    "Message":  "Missing required directory: src/Services",
+                                    "Timestamp":  {
+                                                      "value":  "\/Date(1762492063143)\/",
+                                                      "DisplayHint":  2,
+                                                      "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                  },
+                                    "Recommendation":  "Create directory: mkdir C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Services",
+                                    "Severity":  "High",
+                                    "Category":  "Structure",
+                                    "File":  ""
+                                },
+                                {
+                                    "Message":  "Missing required directory: src/WorkflowEngine",
+                                    "Timestamp":  {
+                                                      "value":  "\/Date(1762492063143)\/",
+                                                      "DisplayHint":  2,
+                                                      "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                  },
+                                    "Recommendation":  "Create directory: mkdir C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\WorkflowEngine",
+                                    "Severity":  "High",
+                                    "Category":  "Structure",
+                                    "File":  ""
+                                },
+                                {
+                                    "Message":  "Missing required directory: src/WebApp",
+                                    "Timestamp":  {
+                                                      "value":  "\/Date(1762492063154)\/",
+                                                      "DisplayHint":  2,
+                                                      "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                  },
+                                    "Recommendation":  "Create directory: mkdir C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\WebApp",
+                                    "Severity":  "High",
+                                    "Category":  "Structure",
+                                    "File":  ""
+                                },
+                                {
+                                    "Message":  "Missing required documentation: docs/API.md",
+                                    "Timestamp":  {
+                                                      "value":  "\/Date(1762492064873)\/",
+                                                      "DisplayHint":  2,
+                                                      "DateTime":  "Thursday, November 6, 2025 11:07:44 PM"
+                                                  },
+                                    "Recommendation":  "API documentation",
+                                    "Severity":  "High",
+                                    "Category":  "Documentation",
+                                    "File":  ""
+                                },
+                                {
+                                    "Message":  "Missing required documentation: docs/DEPLOYMENT.md",
+                                    "Timestamp":  {
+                                                      "value":  "\/Date(1762492064889)\/",
+                                                      "DisplayHint":  2,
+                                                      "DateTime":  "Thursday, November 6, 2025 11:07:44 PM"
+                                                  },
+                                    "Recommendation":  "Deployment guide",
+                                    "Severity":  "High",
+                                    "Category":  "Documentation",
+                                    "File":  ""
+                                },
+                                {
+                                    "Message":  "No test files found",
+                                    "Timestamp":  {
+                                                      "value":  "\/Date(1762492064957)\/",
+                                                      "DisplayHint":  2,
+                                                      "DateTime":  "Thursday, November 6, 2025 11:07:44 PM"
+                                                  },
+                                    "Recommendation":  "Create test files with naming pattern *Tests.cs",
+                                    "Severity":  "High",
+                                    "Category":  "Testing",
+                                    "File":  ""
+                                }
+                            ],
+                   "Info":  [
+
+                            ],
+                   "Low":  [
+                               {
+                                   "Message":  "Contains TODO/HACK/FIXME comments",
+                                   "Timestamp":  {
+                                                     "value":  "\/Date(1762492063413)\/",
+                                                     "DisplayHint":  2,
+                                                     "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                 },
+                                   "Recommendation":  "",
+                                   "Severity":  "Low",
+                                   "Category":  "CodeQuality",
+                                   "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Application\\EventHandlers\\DocumentApprovalStatusChangedEventHandler.cs"
+                               },
+                               {
+                                   "Message":  "Contains TODO/HACK/FIXME comments",
+                                   "Timestamp":  {
+                                                     "value":  "\/Date(1762492063425)\/",
+                                                     "DisplayHint":  2,
+                                                     "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                 },
+                                   "Recommendation":  "",
+                                   "Severity":  "Low",
+                                   "Category":  "CodeQuality",
+                                   "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Application\\EventHandlers\\DocumentCreatedEventHandler.cs"
+                               },
+                               {
+                                   "Message":  "Contains TODO/HACK/FIXME comments",
+                                   "Timestamp":  {
+                                                     "value":  "\/Date(1762492063439)\/",
+                                                     "DisplayHint":  2,
+                                                     "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                 },
+                                   "Recommendation":  "",
+                                   "Severity":  "Low",
+                                   "Category":  "CodeQuality",
+                                   "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Application\\EventHandlers\\DocumentPublishedEventHandler.cs"
+                               },
+                               {
+                                   "Message":  "Contains TODO/HACK/FIXME comments",
+                                   "Timestamp":  {
+                                                     "value":  "\/Date(1762492063756)\/",
+                                                     "DisplayHint":  2,
+                                                     "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                 },
+                                   "Recommendation":  "",
+                                   "Severity":  "Low",
+                                   "Category":  "CodeQuality",
+                                   "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Shared\\Extensions\\ServiceCollectionExtensions.cs"
+                               },
+                               {
+                                   "Message":  "Potential synchronous database call",
+                                   "Timestamp":  {
+                                                     "value":  "\/Date(1762492065067)\/",
+                                                     "DisplayHint":  2,
+                                                     "DateTime":  "Thursday, November 6, 2025 11:07:45 PM"
+                                                 },
+                                   "Recommendation":  "Use async methods (ToListAsync, FirstOrDefaultAsync, etc.)",
+                                   "Severity":  "Low",
+                                   "Category":  "Performance",
+                                   "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Api\\Program.cs"
+                               },
+                               {
+                                   "Message":  "Potential synchronous database call",
+                                   "Timestamp":  {
+                                                     "value":  "\/Date(1762492065075)\/",
+                                                     "DisplayHint":  2,
+                                                     "DateTime":  "Thursday, November 6, 2025 11:07:45 PM"
+                                                 },
+                                   "Recommendation":  "Use async methods (ToListAsync, FirstOrDefaultAsync, etc.)",
+                                   "Severity":  "Low",
+                                   "Category":  "Performance",
+                                   "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Api\\Controllers\\AuthController.cs"
+                               },
+                               {
+                                   "Message":  "Potential synchronous database call",
+                                   "Timestamp":  {
+                                                     "value":  "\/Date(1762492065097)\/",
+                                                     "DisplayHint":  2,
+                                                     "DateTime":  "Thursday, November 6, 2025 11:07:45 PM"
+                                                 },
+                                   "Recommendation":  "Use async methods (ToListAsync, FirstOrDefaultAsync, etc.)",
+                                   "Severity":  "Low",
+                                   "Category":  "Performance",
+                                   "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Application\\Behaviors\\ValidationBehavior.cs"
+                               },
+                               {
+                                   "Message":  "Potential synchronous database call",
+                                   "Timestamp":  {
+                                                     "value":  "\/Date(1762492065163)\/",
+                                                     "DisplayHint":  2,
+                                                     "DateTime":  "Thursday, November 6, 2025 11:07:45 PM"
+                                                 },
+                                   "Recommendation":  "Use async methods (ToListAsync, FirstOrDefaultAsync, etc.)",
+                                   "Severity":  "Low",
+                                   "Category":  "Performance",
+                                   "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Domain\\Services\\DocumentGenerationService.cs"
+                               },
+                               {
+                                   "Message":  "Potential synchronous database call",
+                                   "Timestamp":  {
+                                                     "value":  "\/Date(1762492065187)\/",
+                                                     "DisplayHint":  2,
+                                                     "DateTime":  "Thursday, November 6, 2025 11:07:45 PM"
+                                                 },
+                                   "Recommendation":  "Use async methods (ToListAsync, FirstOrDefaultAsync, etc.)",
+                                   "Severity":  "Low",
+                                   "Category":  "Performance",
+                                   "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Governance\\DataGovernanceProxy.cs"
+                               },
+                               {
+                                   "Message":  "Potential synchronous database call",
+                                   "Timestamp":  {
+                                                     "value":  "\/Date(1762492065205)\/",
+                                                     "DisplayHint":  2,
+                                                     "DateTime":  "Thursday, November 6, 2025 11:07:45 PM"
+                                                 },
+                                   "Recommendation":  "Use async methods (ToListAsync, FirstOrDefaultAsync, etc.)",
+                                   "Severity":  "Low",
+                                   "Category":  "Performance",
+                                   "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Governance\\GovernanceAuthorizationEngine.cs"
+                               },
+                               {
+                                   "Message":  "Potential synchronous database call",
+                                   "Timestamp":  {
+                                                     "value":  "\/Date(1762492065213)\/",
+                                                     "DisplayHint":  2,
+                                                     "DateTime":  "Thursday, November 6, 2025 11:07:45 PM"
+                                                 },
+                                   "Recommendation":  "Use async methods (ToListAsync, FirstOrDefaultAsync, etc.)",
+                                   "Severity":  "Low",
+                                   "Category":  "Performance",
+                                   "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Governance\\GovernanceSecurityEngine.cs"
+                               },
+                               {
+                                   "Message":  "Potential synchronous database call",
+                                   "Timestamp":  {
+                                                     "value":  "\/Date(1762492065234)\/",
+                                                     "DisplayHint":  2,
+                                                     "DateTime":  "Thursday, November 6, 2025 11:07:45 PM"
+                                                 },
+                                   "Recommendation":  "Use async methods (ToListAsync, FirstOrDefaultAsync, etc.)",
+                                   "Severity":  "Low",
+                                   "Category":  "Performance",
+                                   "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Infrastructure\\Persistence\\DocumentationDbContext.cs"
+                               },
+                               {
+                                   "Message":  "Potential synchronous database call",
+                                   "Timestamp":  {
+                                                     "value":  "\/Date(1762492065258)\/",
+                                                     "DisplayHint":  2,
+                                                     "DateTime":  "Thursday, November 6, 2025 11:07:45 PM"
+                                                 },
+                                   "Recommendation":  "Use async methods (ToListAsync, FirstOrDefaultAsync, etc.)",
+                                   "Severity":  "Low",
+                                   "Category":  "Performance",
+                                   "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Infrastructure\\Persistence\\Configurations\\EntityConfigurations.cs"
+                               },
+                               {
+                                   "Message":  "Potential synchronous database call",
+                                   "Timestamp":  {
+                                                     "value":  "\/Date(1762492065269)\/",
+                                                     "DisplayHint":  2,
+                                                     "DateTime":  "Thursday, November 6, 2025 11:07:45 PM"
+                                                 },
+                                   "Recommendation":  "Use async methods (ToListAsync, FirstOrDefaultAsync, etc.)",
+                                   "Severity":  "Low",
+                                   "Category":  "Performance",
+                                   "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Infrastructure\\Persistence\\Repositories\\VersionRepository.cs"
+                               },
+                               {
+                                   "Message":  "Potential synchronous database call",
+                                   "Timestamp":  {
+                                                     "value":  "\/Date(1762492065280)\/",
+                                                     "DisplayHint":  2,
+                                                     "DateTime":  "Thursday, November 6, 2025 11:07:45 PM"
+                                                 },
+                                   "Recommendation":  "Use async methods (ToListAsync, FirstOrDefaultAsync, etc.)",
+                                   "Severity":  "Low",
+                                   "Category":  "Performance",
+                                   "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Quality\\QualityAggregateResult.cs"
+                               },
+                               {
+                                   "Message":  "Potential synchronous database call",
+                                   "Timestamp":  {
+                                                     "value":  "\/Date(1762492065331)\/",
+                                                     "DisplayHint":  2,
+                                                     "DateTime":  "Thursday, November 6, 2025 11:07:45 PM"
+                                                 },
+                                   "Recommendation":  "Use async methods (ToListAsync, FirstOrDefaultAsync, etc.)",
+                                   "Severity":  "Low",
+                                   "Category":  "Performance",
+                                   "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Shared\\Extensions\\ServiceCollectionExtensions.cs"
+                               },
+                               {
+                                   "Message":  "No Models directory found",
+                                   "Timestamp":  {
+                                                     "value":  "\/Date(1762492065361)\/",
+                                                     "DisplayHint":  2,
+                                                     "DateTime":  "Thursday, November 6, 2025 11:07:45 PM"
+                                                 },
+                                   "Recommendation":  "Organize data models in Models directory",
+                                   "Severity":  "Low",
+                                   "Category":  "Maintainability",
+                                   "File":  ""
+                               }
+                           ],
+                   "Critical":  [
+
+                                ],
+                   "Medium":  [
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063345)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Api\\Program.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063367)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Api\\obj\\Debug\\net8.0\\.NETCoreApp,Version=v8.0.AssemblyAttributes.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063375)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Api\\obj\\Debug\\net8.0\\Api.AssemblyInfo.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063380)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Api\\obj\\Debug\\net8.0\\Api.GlobalUsings.g.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063389)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Api\\obj\\Debug\\net8.0\\Api.MvcApplicationPartsAssemblyInfo.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063454)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Application\\obj\\Debug\\net8.0\\.NETCoreApp,Version=v8.0.AssemblyAttributes.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063461)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Application\\obj\\Debug\\net8.0\\Core.Application.AssemblyInfo.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063467)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Application\\obj\\Debug\\net8.0\\Core.Application.GlobalUsings.g.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063511)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Domain\\obj\\Debug\\net8.0\\.NETCoreApp,Version=v8.0.AssemblyAttributes.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063518)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Domain\\obj\\Debug\\net8.0\\Core.Domain.AssemblyInfo.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063518)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Domain\\obj\\Debug\\net8.0\\Core.Domain.GlobalUsings.g.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063592)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Governance\\obj\\Debug\\net8.0\\.NETCoreApp,Version=v8.0.AssemblyAttributes.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063597)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Governance\\obj\\Debug\\net8.0\\Core.Governance.AssemblyInfo.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063602)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Governance\\obj\\Debug\\net8.0\\Core.Governance.GlobalUsings.g.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063632)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Infrastructure\\obj\\Debug\\net8.0\\.NETCoreApp,Version=v8.0.AssemblyAttributes.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063634)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Infrastructure\\obj\\Debug\\net8.0\\Core.Infrastructure.AssemblyInfo.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063647)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Core\\Infrastructure\\obj\\Debug\\net8.0\\Core.Infrastructure.GlobalUsings.g.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063693)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Shared\\Configuration\\obj\\Debug\\net8.0\\.NETCoreApp,Version=v8.0.AssemblyAttributes.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063695)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Shared\\Configuration\\obj\\Debug\\net8.0\\Shared.Configuration.AssemblyInfo.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063706)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Shared\\Configuration\\obj\\Debug\\net8.0\\Shared.Configuration.GlobalUsings.g.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063735)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Shared\\Contracts\\obj\\Debug\\net8.0\\.NETCoreApp,Version=v8.0.AssemblyAttributes.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063742)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Shared\\Contracts\\obj\\Debug\\net8.0\\Shared.Contracts.AssemblyInfo.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063742)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Shared\\Contracts\\obj\\Debug\\net8.0\\Shared.Contracts.GlobalUsings.g.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063756)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Shared\\Extensions\\obj\\Debug\\net8.0\\.NETCoreApp,Version=v8.0.AssemblyAttributes.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063756)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Shared\\Extensions\\obj\\Debug\\net8.0\\Shared.Extensions.AssemblyInfo.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063773)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\src\\Shared\\Extensions\\obj\\Debug\\net8.0\\Shared.Extensions.GlobalUsings.g.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063777)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\tests\\Integration\\obj\\Debug\\net8.0\\.NETCoreApp,Version=v8.0.AssemblyAttributes.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063777)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\tests\\Integration\\obj\\Debug\\net8.0\\Tests.Integration.AssemblyInfo.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063786)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\tests\\Integration\\obj\\Debug\\net8.0\\Tests.Integration.GlobalUsings.g.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063801)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\tests\\Unit\\obj\\Debug\\net8.0\\.NETCoreApp,Version=v8.0.AssemblyAttributes.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063809)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\tests\\Unit\\obj\\Debug\\net8.0\\Tests.Unit.AssemblyInfo.cs"
+                                  },
+                                  {
+                                      "Message":  "Missing namespace declaration",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063817)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\tests\\Unit\\obj\\Debug\\net8.0\\Tests.Unit.GlobalUsings.g.cs"
+                                  },
+                                  {
+                                      "Message":  "Contains debug statements",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492063833)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:43 PM"
+                                                    },
+                                      "Recommendation":  "Replace with proper logging (ILogger)",
+                                      "Severity":  "Medium",
+                                      "Category":  "CodeQuality",
+                                      "File":  "C:\\Projects\\EnterpriseDocumentationPlatform.V2\\tools\\EnterpriseAIQualitySystem.cs"
+                                  },
+                                  {
+                                      "Message":  "No Services directory found",
+                                      "Timestamp":  {
+                                                        "value":  "\/Date(1762492065361)\/",
+                                                        "DisplayHint":  2,
+                                                        "DateTime":  "Thursday, November 6, 2025 11:07:45 PM"
+                                                    },
+                                      "Recommendation":  "Separate business logic into Services",
+                                      "Severity":  "Medium",
+                                      "Category":  "Maintainability",
+                                      "File":  ""
+                                  }
+                              ]
+               }
+}

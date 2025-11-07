@@ -1,491 +1,650 @@
-# Enterprise Code Quality & Architecture Audit System
-# Industry-standard comprehensive assessment tool
-# Combines architectural review with detailed static code analysis
+#!/usr/bin/env pwsh
+<#
+.SYNOPSIS
+    Comprehensive enterprise audit system with quality scoring
+.DESCRIPTION
+    Validates project structure, code quality, security, and documentation
+    Produces detailed audit reports with actionable recommendations
+#>
 
 param(
-    [string]$ProjectPath = ".",
-    [switch]$Detailed = $true,
-    [string]$OutputFormat = "console" # console, json, html
+    [string]$ProjectRoot = "C:\Projects\EnterpriseDocumentationPlatform.V2",
+    [string]$OutputPath = ".\audit-reports",
+    [switch]$FailOnWarnings,
+    [int]$MinimumScore = 80
 )
 
-Write-Host "🏗️ ENTERPRISE COMPREHENSIVE AUDIT SYSTEM" -ForegroundColor Cyan
-Write-Host "Industry-Standard Code Quality & Architecture Assessment" -ForegroundColor Gray
-Write-Host "=========================================================" -ForegroundColor Gray
-Write-Host ""
+$ErrorActionPreference = "Stop"
+Set-StrictMode -Version Latest
 
-$rootPath = Resolve-Path $ProjectPath
-$srcPath = Join-Path $rootPath "src"
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
 
-# Industry-standard thresholds (based on SonarQube, NDepend, Microsoft guidelines)
-$QualityThresholds = @{
-    # Code Complexity (based on McCabe Cyclomatic Complexity)
-    MaxCyclomaticComplexity = 15        # Industry: 10-15 (SonarQube: 15)
-    MaxMethodLines = 50                 # Industry: 30-60 (Microsoft: 50)
-    MaxClassLines = 500                 # Industry: 300-700 (SonarQube: 500)
-    MaxParameterCount = 7               # Industry: 5-8 (Clean Code: 3-7)
-    MaxNestingDepth = 4                 # Industry: 3-5 (SonarQube: 4)
+$AuditConfig = @{
+    ProjectRoot = $ProjectRoot
+    OutputPath = $OutputPath
+    Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
     
-    # Quality Metrics
-    MinDocumentationCoverage = 60       # Industry: 50-80% (Enterprise: 60%)
-    MaxDuplicationPercentage = 5        # Industry: 3-5% (SonarQube: 3%)
-    MinTestCoverage = 70               # Industry: 70-90% (Microsoft: 80%)
-    MaxTechnicalDebt = 20              # Industry: <20% (SonarQube rating)
+    # Quality thresholds
+    Thresholds = @{
+        Critical = 100  # Must be 100%
+        High = 90       # Should be 90%+
+        Medium = 80     # Should be 80%+
+        Low = 70        # Should be 70%+
+    }
     
-    # Architecture Metrics
-    MaxLayerCoupling = 10              # Max dependencies between layers
-    MinCohesion = 70                   # Package/namespace cohesion %
-    MaxInstability = 30                # Architecture instability %
+    # Scoring weights (must sum to 100)
+    Weights = @{
+        ProjectStructure = 10
+        CodeQuality = 25
+        Security = 20
+        Documentation = 15
+        Testing = 15
+        Performance = 10
+        Maintainability = 5
+    }
 }
 
-# Results tracking
+# ============================================================================
+# AUDIT RESULTS TRACKING
+# ============================================================================
+
 $AuditResults = @{
-    StartTime = Get-Date
-    ProjectPath = $rootPath
-    Summary = @{}
-    Categories = @{}
-    Files = @()
-    Violations = @()
+    Timestamp = $AuditConfig.Timestamp
+    ProjectRoot = $ProjectRoot
+    Scores = @{}
+    Issues = @{
+        Critical = @()
+        High = @()
+        Medium = @()
+        Low = @()
+        Info = @()
+    }
     Metrics = @{}
+    Recommendations = @()
 }
 
-# Helper functions
-function Get-CSharpFiles($path, $excludePatterns = @("*\bin\*", "*\obj\*", "*Migrations*", "*.Designer.cs", "*.g.cs")) {
-    if (-not (Test-Path $path)) { return @() }
-    
-    $files = Get-ChildItem -Path $path -Recurse -Filter "*.cs" | Where-Object {
-        $file = $_.FullName
-        $exclude = $false
-        foreach ($pattern in $excludePatterns) {
-            if ($file -like $pattern) { $exclude = $true; break }
-        }
-        return -not $exclude
-    }
-    return $files
+# ============================================================================
+# UTILITY FUNCTIONS
+# ============================================================================
+
+function Write-AuditHeader {
+    param([string]$Title)
+    Write-Host "`n========================================" -ForegroundColor Cyan
+    Write-Host "  $Title" -ForegroundColor Cyan
+    Write-Host "========================================" -ForegroundColor Cyan
 }
 
-function Measure-CyclomaticComplexity($content) {
-    # Count decision points (more accurate than simple keyword counting)
-    $complexity = 1 # Base complexity
-    
-    # Control flow keywords
-    $complexity += ([regex]::Matches($content, '\bif\s*\(', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)).Count
-    $complexity += ([regex]::Matches($content, '\bwhile\s*\(', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)).Count
-    $complexity += ([regex]::Matches($content, '\bfor\s*\(', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)).Count
-    $complexity += ([regex]::Matches($content, '\bforeach\s*\(', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)).Count
-    $complexity += ([regex]::Matches($content, '\bdo\s*\{', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)).Count
-    
-    # Switch cases
-    $complexity += ([regex]::Matches($content, '\bcase\s+', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)).Count
-    
-    # Exception handling
-    $complexity += ([regex]::Matches($content, '\bcatch\s*[\(\{]', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)).Count
-    
-    # Logical operators (&&, ||)
-    $complexity += ([regex]::Matches($content, '&&')).Count
-    $complexity += ([regex]::Matches($content, '\|\|')).Count
-    
-    # Ternary operators
-    $complexity += ([regex]::Matches($content, '\?[^?]*:')).Count
-    
-    return $complexity
+function Write-AuditSection {
+    param([string]$Section)
+    Write-Host "`n--- $Section ---" -ForegroundColor Yellow
 }
 
-function Measure-CodeDuplication($allFiles) {
-    # Simplified duplication detection
-    $duplicatedLines = 0
-    $totalLines = 0
+function Add-Issue {
+    param(
+        [ValidateSet('Critical','High','Medium','Low','Info')]
+        [string]$Severity,
+        [string]$Category,
+        [string]$Message,
+        [string]$File = "",
+        [string]$Recommendation = ""
+    )
     
-    # This is a basic implementation - in production, use tools like SonarQube
-    # For now, we'll estimate based on common patterns
-    foreach ($file in $allFiles) {
-        $content = Get-Content $file.FullName -Raw
-        $lines = $content -split "`n"
-        $totalLines += $lines.Count
-        
-        # Look for obvious duplication patterns (simplified)
-        $duplicatePatterns = @(
-            'throw new ArgumentNullException',
-            'if \(.*== null\)',
-            'return Task\.FromResult',
-            'public class.*Controller'
-        )
-        
-        foreach ($pattern in $duplicatePatterns) {
-            $matches = [regex]::Matches($content, $pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
-            if ($matches.Count -gt 1) {
-                $duplicatedLines += ($matches.Count - 1) * 3 # Estimate 3 lines per duplicate
-            }
-        }
+    $issue = @{
+        Severity = $Severity
+        Category = $Category
+        Message = $Message
+        File = $File
+        Recommendation = $Recommendation
+        Timestamp = Get-Date
     }
     
-    return if ($totalLines -gt 0) { [Math]::Round(($duplicatedLines / $totalLines) * 100, 2) } else { 0 }
-}
-
-function Analyze-Architecture($srcPath) {
-    Write-Host "🏗️ ARCHITECTURE ANALYSIS" -ForegroundColor Yellow
-    Write-Host "=========================" -ForegroundColor Gray
+    $AuditResults.Issues[$Severity] += $issue
     
-    $archScore = 0
-    $archDetails = @{}
-    
-    # 1. Layer Structure Analysis
-    $layers = @{
-        "Domain" = Join-Path $srcPath "Core\Domain"
-        "Application" = Join-Path $srcPath "Core\Application" 
-        "Infrastructure" = Join-Path $srcPath "Core\Infrastructure"
-        "API" = Join-Path $srcPath "Api"
-        "Shared" = Join-Path $srcPath "Shared"
+    $color = switch($Severity) {
+        'Critical' { 'Red' }
+        'High' { 'Magenta' }
+        'Medium' { 'Yellow' }
+        'Low' { 'Gray' }
+        'Info' { 'Cyan' }
     }
     
-    $layerCompliance = 0
-    foreach ($layer in $layers.GetEnumerator()) {
-        $exists = Test-Path $layer.Value
-        if ($exists) {
-            $fileCount = (Get-CSharpFiles $layer.Value).Count
-            Write-Host "   ✅ $($layer.Key): $fileCount files" -ForegroundColor Green
-            $layerCompliance += 20
+    Write-Host "  [$Severity] $Message" -ForegroundColor $color
+    if ($File) { Write-Host "    File: $File" -ForegroundColor Gray }
+}
+
+function Set-Score {
+    param(
+        [string]$Category,
+        [double]$Score,
+        [double]$MaxScore = 100
+    )
+    
+    $percentage = ($Score / $MaxScore) * 100
+    $AuditResults.Scores[$Category] = @{
+        Score = $Score
+        MaxScore = $MaxScore
+        Percentage = $percentage
+    }
+    
+    $color = if ($percentage -ge 90) { 'Green' } 
+             elseif ($percentage -ge 80) { 'Yellow' } 
+             else { 'Red' }
+    
+    Write-Host "  Score: $($percentage.ToString('F1'))% ($Score/$MaxScore)" -ForegroundColor $color
+}
+
+# ============================================================================
+# AUDIT FUNCTIONS
+# ============================================================================
+
+function Test-ProjectStructure {
+    Write-AuditHeader "PROJECT STRUCTURE AUDIT"
+    
+    $score = 0
+    $maxScore = 100
+    
+    # Check required directories
+    Write-AuditSection "Directory Structure"
+    $requiredDirs = @(
+        "src/Api",
+        "src/Services",
+        "src/WorkflowEngine",
+        "src/WebApp",
+        "tests",
+        "docs",
+        "tools",
+        ".github/workflows"
+    )
+    
+    foreach ($dir in $requiredDirs) {
+        $fullPath = Join-Path $ProjectRoot $dir
+        if (Test-Path $fullPath) {
+            $score += (100 / $requiredDirs.Count)
+            Write-Host "  [OK] $dir" -ForegroundColor Green
         } else {
-            Write-Host "   ❌ $($layer.Key): Missing" -ForegroundColor Red
-        }
-    }
-    $archScore += $layerCompliance * 0.3
-    
-    # 2. Dependency Analysis (simplified)
-    $domainFiles = Get-CSharpFiles (Join-Path $srcPath "Core\Domain")
-    $domainDependencies = 0
-    foreach ($file in $domainFiles) {
-        $content = Get-Content $file.FullName -Raw
-        # Check for infrastructure dependencies in domain (anti-pattern)
-        if ($content -match "using.*Infrastructure" -or $content -match "using.*EntityFramework") {
-            $domainDependencies++
+            Add-Issue -Severity 'High' -Category 'Structure' `
+                -Message "Missing required directory: $dir" `
+                -Recommendation "Create directory: mkdir $fullPath"
         }
     }
     
-    $dependencyScore = if ($domainDependencies -eq 0) { 100 } else { [Math]::Max(0, 100 - ($domainDependencies * 10)) }
-    Write-Host "   🔗 Domain Dependency Violations: $domainDependencies (Score: $dependencyScore)" -ForegroundColor $(if ($domainDependencies -eq 0) { "Green" } else { "Yellow" })
-    $archScore += $dependencyScore * 0.2
+    # Check critical files
+    Write-AuditSection "Critical Files"
+    $criticalFiles = @(
+        "README.md",
+        ".gitignore",
+        "src/Api/Program.cs",
+        "src/Api/appsettings.json"
+    )
     
-    # 3. CQRS/Pattern Implementation
-    $commandsPath = Join-Path $srcPath "Core\Application\Commands"
-    $queriesPath = Join-Path $srcPath "Core\Application\Queries"
-    $cqrsScore = 0
-    
-    if (Test-Path $commandsPath) { 
-        $commandCount = (Get-CSharpFiles $commandsPath).Count
-        Write-Host "   ⚡ Commands: $commandCount files" -ForegroundColor Green
-        $cqrsScore += 50 
+    foreach ($file in $criticalFiles) {
+        $fullPath = Join-Path $ProjectRoot $file
+        if (Test-Path $fullPath) {
+            Write-Host "  [OK] $file" -ForegroundColor Green
+        } else {
+            Add-Issue -Severity 'Critical' -Category 'Structure' `
+                -Message "Missing critical file: $file" `
+                -File $fullPath `
+                -Recommendation "Create required file"
+            $score -= 5
+        }
     }
-    if (Test-Path $queriesPath) { 
-        $queryCount = (Get-CSharpFiles $queriesPath).Count
-        Write-Host "   🔍 Queries: $queryCount files" -ForegroundColor Green
-        $cqrsScore += 50 
-    }
-    $archScore += $cqrsScore * 0.3
     
-    # 4. Repository Pattern
-    $repoPath = Join-Path $srcPath "Core\Infrastructure\Persistence\Repositories"
-    $repoScore = if (Test-Path $repoPath) { 
-        $repoCount = (Get-CSharpFiles $repoPath).Count
-        Write-Host "   📚 Repositories: $repoCount files" -ForegroundColor Green
-        100 
-    } else { 
-        Write-Host "   📚 Repositories: Missing" -ForegroundColor Yellow
-        50 
-    }
-    $archScore += $repoScore * 0.2
-    
-    Write-Host "   📊 Architecture Score: $($archScore.ToString('F1'))/100" -ForegroundColor Cyan
-    Write-Host ""
-    
-    return @{
-        Score = $archScore
-        LayerCompliance = $layerCompliance
-        DependencyViolations = $domainDependencies
-        CQRSImplemented = $cqrsScore -eq 100
-        RepositoryPattern = $repoScore -eq 100
-    }
+    Set-Score -Category "ProjectStructure" -Score ([Math]::Max(0, $score)) -MaxScore $maxScore
 }
 
-function Analyze-CodeQuality($allFiles) {
-    Write-Host "⚡ CODE QUALITY ANALYSIS" -ForegroundColor Yellow
-    Write-Host "========================" -ForegroundColor Gray
+function Test-CodeQuality {
+    Write-AuditHeader "CODE QUALITY AUDIT"
     
-    $totalFiles = $allFiles.Count
-    $totalLines = 0
-    $totalComplexity = 0
-    $violations = @{
-        Complexity = 0
-        MethodLength = 0
-        ClassLength = 0
-        ParameterCount = 0
-        Documentation = 0
-        Naming = 0
+    $score = 100
+    $issues = 0
+    
+    # Find all C# files
+    Write-AuditSection "C# Code Analysis"
+    $csFiles = Get-ChildItem -Path $ProjectRoot -Filter "*.cs" -Recurse -ErrorAction SilentlyContinue
+    
+    if ($csFiles.Count -eq 0) {
+        Add-Issue -Severity 'High' -Category 'CodeQuality' `
+            -Message "No C# files found in project"
+        Set-Score -Category "CodeQuality" -Score 0 -MaxScore 100
+        return
     }
     
-    $qualityScores = @()
+    Write-Host "  Found $($csFiles.Count) C# files"
     
-    foreach ($file in $allFiles) {
-        $fileName = $file.Name
-        $content = Get-Content $file.FullName -Raw
-        $lines = ($content -split "`n").Count
-        $totalLines += $lines
+    foreach ($file in $csFiles) {
+        $content = Get-Content $file.FullName -Raw -ErrorAction SilentlyContinue
+        if (-not $content) { continue }
         
-        $fileScore = 100
-        $fileViolations = @()
-        
-        # 1. Cyclomatic Complexity Analysis
-        $complexity = Measure-CyclomaticComplexity $content
-        $totalComplexity += $complexity
-        if ($complexity -gt $QualityThresholds.MaxCyclomaticComplexity) {
-            $violations.Complexity++
-            $fileViolations += "High complexity: $complexity (max: $($QualityThresholds.MaxCyclomaticComplexity))"
-            $fileScore -= [Math]::Min(30, ($complexity - $QualityThresholds.MaxCyclomaticComplexity) * 2)
+        # Check for common issues
+        if ($content -match 'TODO:|HACK:|FIXME:') {
+            Add-Issue -Severity 'Low' -Category 'CodeQuality' `
+                -Message "Contains TODO/HACK/FIXME comments" `
+                -File $file.FullName
+            $issues++
         }
         
-        # 2. Method Length Analysis (improved regex)
-        $methodPattern = '(?s)(public|private|protected|internal|static).*?\b\w+\s*\([^)]*\)\s*\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
-        $methodMatches = [regex]::Matches($content, $methodPattern)
-        foreach ($match in $methodMatches) {
-            $methodLines = ($match.Value -split "`n").Count
-            if ($methodLines -gt $QualityThresholds.MaxMethodLines) {
-                $violations.MethodLength++
-                $fileViolations += "Long method: $methodLines lines (max: $($QualityThresholds.MaxMethodLines))"
-                $fileScore -= 5
+        if ($content -match 'Console\.WriteLine|System\.Diagnostics\.Debug') {
+            Add-Issue -Severity 'Medium' -Category 'CodeQuality' `
+                -Message "Contains debug statements" `
+                -File $file.FullName `
+                -Recommendation "Replace with proper logging (ILogger)"
+            $issues++
+            $score -= 2
+        }
+        
+        if (-not ($content -match 'namespace\s+[\w\.]+')) {
+            Add-Issue -Severity 'Medium' -Category 'CodeQuality' `
+                -Message "Missing namespace declaration" `
+                -File $file.FullName
+            $issues++
+            $score -= 2
+        }
+    }
+    
+    Write-Host "  Total issues found: $issues"
+    Set-Score -Category "CodeQuality" -Score ([Math]::Max(0, $score)) -MaxScore 100
+}
+
+function Test-Security {
+    Write-AuditHeader "SECURITY AUDIT"
+    
+    $score = 100
+    $criticalIssues = 0
+    
+    Write-AuditSection "Secrets & Credentials Scan"
+    
+    $patterns = @{
+        'API Key' = '(api[_-]?key|apikey)["\s:=]+[a-zA-Z0-9]{20,}'
+        'Password' = '(password|passwd|pwd)["\s:=]+[^"\s]{8,}'
+        'Connection String' = 'Server=.+;Database=.+;User Id=.+;Password=.+'
+        'Private Key' = '-----BEGIN (RSA |)PRIVATE KEY-----'
+        'AWS Secret' = '(aws[_-]?secret[_-]?access[_-]?key|AKIA[0-9A-Z]{16})'
+    }
+    
+    $searchFiles = Get-ChildItem -Path $ProjectRoot -Include "*.cs","*.json","*.config","*.xml" -Recurse -ErrorAction SilentlyContinue
+    
+    foreach ($file in $searchFiles) {
+        # Skip appsettings.json and similar config files that should have placeholders
+        if ($file.Name -match 'appsettings|\.example\.|\.template\.') {
+            continue
+        }
+        
+        $content = Get-Content $file.FullName -Raw -ErrorAction SilentlyContinue
+        if (-not $content) { continue }
+        
+        foreach ($patternName in $patterns.Keys) {
+            if ($content -match $patterns[$patternName]) {
+                Add-Issue -Severity 'Critical' -Category 'Security' `
+                    -Message "Potential hardcoded $patternName detected" `
+                    -File $file.FullName `
+                    -Recommendation "Move to Azure Key Vault or environment variables"
+                $criticalIssues++
+                $score -= 20
             }
         }
+    }
+    
+    Write-AuditSection "Configuration Security"
+    
+    # Check appsettings.json
+    $appsettings = Join-Path $ProjectRoot "src/Api/appsettings.json"
+    if (Test-Path $appsettings) {
+        $config = Get-Content $appsettings -Raw | ConvertFrom-Json
         
-        # 3. Class Length Analysis
-        if ($lines -gt $QualityThresholds.MaxClassLines) {
-            $violations.ClassLength++
-            $fileViolations += "Large class: $lines lines (max: $($QualityThresholds.MaxClassLines))"
-            $fileScore -= 10
-        }
-        
-        # 4. Parameter Count Analysis
-        $methodSigPattern = '\b\w+\s*\(([^)]+)\)'
-        $methodSignatures = [regex]::Matches($content, $methodSigPattern)
-        foreach ($sig in $methodSignatures) {
-            if ($sig.Groups[1].Value.Trim() -ne "") {
-                $paramCount = ($sig.Groups[1].Value -split ',').Count
-                if ($paramCount -gt $QualityThresholds.MaxParameterCount) {
-                    $violations.ParameterCount++
-                    $fileViolations += "Too many parameters: $paramCount (max: $($QualityThresholds.MaxParameterCount))"
-                    $fileScore -= 3
+        if ($config.ConnectionStrings) {
+            foreach ($connName in $config.ConnectionStrings.PSObject.Properties.Name) {
+                $connString = $config.ConnectionStrings.$connName
+                if ($connString -match 'Password=(?!@|{)[^;]{3,}') {
+                    Add-Issue -Severity 'Critical' -Category 'Security' `
+                        -Message "Connection string contains plain-text password: $connName" `
+                        -File $appsettings `
+                        -Recommendation "Use Azure Key Vault reference: @Microsoft.KeyVault(SecretUri=...)"
+                    $criticalIssues++
+                    $score -= 20
                 }
             }
         }
-        
-        # 5. Documentation Analysis
-        $xmlDocCount = ([regex]::Matches($content, '///\s*<summary>')).Count
-        $publicMethods = ([regex]::Matches($content, 'public\s+(?:static\s+)?(?:async\s+)?(?:Task<?[^>]*>?|void|\w+)\s+\w+\s*\(')).Count
-        $publicClasses = ([regex]::Matches($content, 'public\s+(?:partial\s+)?(?:class|interface|enum|struct)\s+\w+')).Count
-        
-        $expectedDocs = $publicMethods + $publicClasses
-        if ($expectedDocs -gt 0) {
-            $docCoverage = ($xmlDocCount / $expectedDocs) * 100
-            if ($docCoverage -lt $QualityThresholds.MinDocumentationCoverage) {
-                $violations.Documentation++
-                $fileViolations += "Low documentation: $($docCoverage.ToString('F1'))% (min: $($QualityThresholds.MinDocumentationCoverage)%)"
-                $fileScore -= 5
-            }
-        }
-        
-        # 6. Naming Convention Analysis
-        $badNaming = 0
-        # Check for non-PascalCase public members
-        $publicMembers = [regex]::Matches($content, 'public\s+(?:class|interface|enum|struct|\w+\s+\w+)\s+([a-z]\w*)')
-        $badNaming += $publicMembers.Count
-        
-        if ($badNaming -gt 0) {
-            $violations.Naming++
-            $fileViolations += "Naming violations: $badNaming items"
-            $fileScore -= 2
-        }
-        
-        $fileScore = [Math]::Max(0, $fileScore)
-        $qualityScores += $fileScore
-        
-        if ($fileViolations.Count -gt 0 -and $Detailed) {
-            Write-Host "   📄 $fileName : $($fileScore.ToString('F0'))/100" -ForegroundColor $(if ($fileScore -ge 80) { "Green" } elseif ($fileScore -ge 60) { "Yellow" } else { "Red" })
-            foreach ($violation in $fileViolations) {
-                Write-Host "      - $violation" -ForegroundColor Gray
-            }
-        }
     }
     
-    # Calculate overall metrics
-    $avgLinesPerFile = if ($totalFiles -gt 0) { [Math]::Round($totalLines / $totalFiles, 1) } else { 0 }
-    $avgComplexity = if ($totalFiles -gt 0) { [Math]::Round($totalComplexity / $totalFiles, 1) } else { 0 }
-    $avgQualityScore = if ($qualityScores.Count -gt 0) { [Math]::Round(($qualityScores | Measure-Object -Average).Average, 1) } else { 0 }
-    
-    Write-Host ""
-    Write-Host "   📊 Code Quality Metrics:" -ForegroundColor White
-    Write-Host "      Total Files: $totalFiles" -ForegroundColor Gray
-    Write-Host "      Total Lines: $($totalLines.ToString('N0'))" -ForegroundColor Gray
-    Write-Host "      Avg Lines/File: $avgLinesPerFile" -ForegroundColor Gray
-    Write-Host "      Avg Complexity: $avgComplexity" -ForegroundColor Gray
-    Write-Host "      Avg Quality Score: $avgQualityScore/100" -ForegroundColor $(if ($avgQualityScore -ge 80) { "Green" } elseif ($avgQualityScore -ge 60) { "Yellow" } else { "Red" })
-    Write-Host ""
-    Write-Host "   ⚠️ Violations Summary:" -ForegroundColor Yellow
-    Write-Host "      Complexity: $($violations.Complexity)" -ForegroundColor Gray
-    Write-Host "      Method Length: $($violations.MethodLength)" -ForegroundColor Gray
-    Write-Host "      Class Length: $($violations.ClassLength)" -ForegroundColor Gray
-    Write-Host "      Parameter Count: $($violations.ParameterCount)" -ForegroundColor Gray
-    Write-Host "      Documentation: $($violations.Documentation)" -ForegroundColor Gray
-    Write-Host "      Naming: $($violations.Naming)" -ForegroundColor Gray
-    Write-Host ""
-    
-    return @{
-        Score = $avgQualityScore
-        TotalFiles = $totalFiles
-        TotalLines = $totalLines
-        AvgLinesPerFile = $avgLinesPerFile
-        AvgComplexity = $avgComplexity
-        Violations = $violations
-        FileScores = $qualityScores
+    if ($criticalIssues -eq 0) {
+        Write-Host "  [OK] No critical security issues found" -ForegroundColor Green
+    } else {
+        Write-Host "  [CRITICAL] Found $criticalIssues critical security issues!" -ForegroundColor Red
     }
+    
+    Set-Score -Category "Security" -Score ([Math]::Max(0, $score)) -MaxScore 100
 }
 
-function Analyze-TestCoverage($rootPath) {
-    Write-Host "🧪 TEST COVERAGE ANALYSIS" -ForegroundColor Yellow
-    Write-Host "=========================" -ForegroundColor Gray
+function Test-Documentation {
+    Write-AuditHeader "DOCUMENTATION AUDIT"
     
-    $testPaths = @(
-        Join-Path $rootPath "tests\Unit"
-        Join-Path $rootPath "tests\Integration"
+    $score = 100
+    
+    Write-AuditSection "Required Documentation"
+    
+    $requiredDocs = @{
+        "README.md" = "Project overview and setup instructions"
+        "docs/ARCHITECTURE.md" = "System architecture documentation"
+        "docs/API.md" = "API documentation"
+        "docs/DEPLOYMENT.md" = "Deployment guide"
+    }
+    
+    foreach ($doc in $requiredDocs.Keys) {
+        $fullPath = Join-Path $ProjectRoot $doc
+        if (Test-Path $fullPath) {
+            $content = Get-Content $fullPath -Raw
+            $wordCount = ($content -split '\s+').Count
+            
+            if ($wordCount -lt 100) {
+                Add-Issue -Severity 'Medium' -Category 'Documentation' `
+                    -Message "$doc exists but is minimal ($wordCount words)" `
+                    -File $fullPath `
+                    -Recommendation "Expand documentation to at least 100 words"
+                $score -= 5
+            } else {
+                Write-Host "  [OK] $doc ($wordCount words)" -ForegroundColor Green
+            }
+        } else {
+            Add-Issue -Severity 'High' -Category 'Documentation' `
+                -Message "Missing required documentation: $doc" `
+                -Recommendation $requiredDocs[$doc]
+            $score -= 15
+        }
+    }
+    
+    Set-Score -Category "Documentation" -Score ([Math]::Max(0, $score)) -MaxScore 100
+}
+
+function Test-TestingInfrastructure {
+    Write-AuditHeader "TESTING INFRASTRUCTURE AUDIT"
+    
+    $score = 0
+    $maxScore = 100
+    
+    Write-AuditSection "Test Projects"
+    
+    # Check for test projects
+    $testProjects = Get-ChildItem -Path (Join-Path $ProjectRoot "tests") -Filter "*.csproj" -Recurse -ErrorAction SilentlyContinue
+    
+    if ($testProjects.Count -eq 0) {
+        Add-Issue -Severity 'High' -Category 'Testing' `
+            -Message "No test projects found" `
+            -Recommendation "Create test projects using: dotnet new xunit"
+        Set-Score -Category "Testing" -Score 0 -MaxScore 100
+        return
+    }
+    
+    Write-Host "  Found $($testProjects.Count) test project(s)" -ForegroundColor Green
+    $score += 30
+    
+    # Check for test files
+    $testFiles = @(Get-ChildItem -Path (Join-Path $ProjectRoot "tests") -Filter "*Tests.cs" -Recurse -ErrorAction SilentlyContinue)
+    
+    if ($testFiles -and $testFiles.Count -gt 0) {
+        Write-Host "  Found $($testFiles.Count) test file(s)" -ForegroundColor Green
+        $score += 40
+        
+        # Calculate test metrics
+        $totalTests = 0
+        foreach ($file in $testFiles) {
+            $content = Get-Content $file.FullName -Raw -ErrorAction SilentlyContinue
+            if ($content) {
+                $testCount = ([regex]::Matches($content, '\[Fact\]|\[Theory\]')).Count
+                $totalTests += $testCount
+            }
+        }
+        
+        if ($totalTests -gt 0) {
+            Write-Host "  Total test methods: $totalTests" -ForegroundColor Green
+            $score += 30
+        } else {
+            Add-Issue -Severity 'Medium' -Category 'Testing' `
+                -Message "Test files exist but contain no test methods" `
+                -Recommendation "Add [Fact] or [Theory] test methods"
+        }
+    } else {
+        Add-Issue -Severity 'High' -Category 'Testing' `
+            -Message "No test files found" `
+            -Recommendation "Create test files with naming pattern *Tests.cs"
+    }
+    
+    Set-Score -Category "Testing" -Score $score -MaxScore $maxScore
+}
+
+function Test-Performance {
+    Write-AuditHeader "PERFORMANCE AUDIT"
+    
+    $score = 100
+    
+    Write-AuditSection "Performance Best Practices"
+    
+    # Check for async/await usage
+    $csFiles = Get-ChildItem -Path (Join-Path $ProjectRoot "src") -Filter "*.cs" -Recurse -ErrorAction SilentlyContinue
+    $asyncCount = 0
+    $syncDbCalls = 0
+    
+    foreach ($file in $csFiles) {
+        $content = Get-Content $file.FullName -Raw -ErrorAction SilentlyContinue
+        if (-not $content) { continue }
+        
+        if ($content -match '\basync\s+Task') {
+            $asyncCount++
+        }
+        
+        # Check for synchronous DB calls
+        if ($content -match '\.ToList\(\)|\.FirstOrDefault\(\)|\.Count\(\)') {
+            if ($content -notmatch 'await.*\.ToListAsync\(\)|await.*\.FirstOrDefaultAsync\(\)|await.*\.CountAsync\(\)') {
+                Add-Issue -Severity 'Low' -Category 'Performance' `
+                    -Message "Potential synchronous database call" `
+                    -File $file.FullName `
+                    -Recommendation "Use async methods (ToListAsync, FirstOrDefaultAsync, etc.)"
+                $syncDbCalls++
+                $score -= 2
+            }
+        }
+    }
+    
+    if ($asyncCount -gt 0) {
+        Write-Host "  [OK] Found $asyncCount async methods" -ForegroundColor Green
+    } else {
+        Add-Issue -Severity 'Medium' -Category 'Performance' `
+            -Message "No async methods found" `
+            -Recommendation "Use async/await for I/O operations"
+        $score -= 10
+    }
+    
+    if ($syncDbCalls -gt 0) {
+        Write-Host "  [WARNING] Found $syncDbCalls potential synchronous DB calls" -ForegroundColor Yellow
+    }
+    
+    Set-Score -Category "Performance" -Score ([Math]::Max(0, $score)) -MaxScore 100
+}
+
+function Test-Maintainability {
+    Write-AuditHeader "MAINTAINABILITY AUDIT"
+    
+    $score = 100
+    
+    Write-AuditSection "Code Organization"
+    
+    # Check for proper separation of concerns
+    $srcPath = Join-Path $ProjectRoot "src"
+    $hasControllers = Test-Path (Join-Path $srcPath "Api/Controllers")
+    $hasServices = Test-Path (Join-Path $srcPath "Services")
+    $hasModels = Test-Path (Join-Path $srcPath "Api/Models")
+    
+    if ($hasControllers) { 
+        Write-Host "  [OK] Controllers directory exists" -ForegroundColor Green 
+    } else {
+        Add-Issue -Severity 'Medium' -Category 'Maintainability' `
+            -Message "No Controllers directory found" `
+            -Recommendation "Organize API endpoints in Controllers directory"
+        $score -= 20
+    }
+    
+    if ($hasServices) { 
+        Write-Host "  [OK] Services directory exists" -ForegroundColor Green 
+    } else {
+        Add-Issue -Severity 'Medium' -Category 'Maintainability' `
+            -Message "No Services directory found" `
+            -Recommendation "Separate business logic into Services"
+        $score -= 20
+    }
+    
+    if ($hasModels) { 
+        Write-Host "  [OK] Models directory exists" -ForegroundColor Green 
+    } else {
+        Add-Issue -Severity 'Low' -Category 'Maintainability' `
+            -Message "No Models directory found" `
+            -Recommendation "Organize data models in Models directory"
+        $score -= 10
+    }
+    
+    Set-Score -Category "Maintainability" -Score ([Math]::Max(0, $score)) -MaxScore 100
+}
+
+# ============================================================================
+# REPORT GENERATION
+# ============================================================================
+
+function New-AuditReport {
+    Write-AuditHeader "GENERATING AUDIT REPORT"
+    
+    # Calculate final score
+    $finalScore = 0
+    foreach ($category in $AuditConfig.Weights.Keys) {
+        if ($AuditResults.Scores.ContainsKey($category)) {
+            $categoryScore = $AuditResults.Scores[$category].Percentage
+            $weight = $AuditConfig.Weights[$category] / 100
+            $finalScore += $categoryScore * $weight
+        }
+    }
+    
+    # Display summary
+    Write-Host "`n========================================"
+    Write-Host "  AUDIT SUMMARY"
+    Write-Host "========================================" -ForegroundColor Cyan
+    
+    Write-Host "`nSCORES BY CATEGORY:"
+    foreach ($category in $AuditResults.Scores.Keys | Sort-Object) {
+        $score = $AuditResults.Scores[$category]
+        $weight = $AuditConfig.Weights[$category]
+        $icon = if ($score.Percentage -ge 90) { "[OK]" } elseif ($score.Percentage -ge 80) { "[WARN]" } else { "[FAIL]" }
+        $color = if ($score.Percentage -ge 90) { "Green" } elseif ($score.Percentage -ge 80) { "Yellow" } else { "Red" }
+        
+        Write-Host "  $icon ${category}: $($score.Percentage.ToString('F1'))/100 ($weight% weight)" -ForegroundColor $color
+    }
+    
+    Write-Host "`nOVERALL QUALITY SCORE: $($finalScore.ToString('F1'))/100" -ForegroundColor $(
+        if ($finalScore -ge 90) { 'Green' } elseif ($finalScore -ge 80) { 'Yellow' } else { 'Red' }
     )
     
-    $testScore = 0
-    $totalTestFiles = 0
+    Write-Host "`nISSUES SUMMARY:"
+    Write-Host "  Critical: $($AuditResults.Issues.Critical.Count)" -ForegroundColor Red
+    Write-Host "  High: $($AuditResults.Issues.High.Count)" -ForegroundColor Magenta
+    Write-Host "  Medium: $($AuditResults.Issues.Medium.Count)" -ForegroundColor Yellow
+    Write-Host "  Low: $($AuditResults.Issues.Low.Count)" -ForegroundColor Gray
     
-    foreach ($testPath in $testPaths) {
-        if (Test-Path $testPath) {
-            $testFiles = Get-CSharpFiles $testPath
-            $totalTestFiles += $testFiles.Count
-            Write-Host "   ✅ $($testPath.Split('\')[-1]): $($testFiles.Count) test files" -ForegroundColor Green
-            $testScore += 50
-        } else {
-            Write-Host "   ❌ $($testPath.Split('\')[-1]): Missing" -ForegroundColor Red
-        }
+    # Save JSON report
+    $reportPath = Join-Path $OutputPath "audit-$($AuditConfig.Timestamp).json"
+    $null = New-Item -ItemType Directory -Path $OutputPath -Force
+    
+    $AuditResults | ConvertTo-Json -Depth 10 | Out-File $reportPath -Encoding UTF8
+    Write-Host "`nDetailed report saved: $reportPath" -ForegroundColor Cyan
+    
+    # Create markdown report
+    $mdReport = @"
+# Enterprise Documentation Platform - Audit Report
+**Generated:** $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+**Project:** $ProjectRoot
+
+## Overall Score: $($finalScore.ToString('F1'))/100
+
+## Scores by Category
+$(foreach ($cat in $AuditResults.Scores.Keys | Sort-Object) {
+    $s = $AuditResults.Scores[$cat]
+    "- **${cat}**: $($s.Percentage.ToString('F1'))% ($($s.Score)/$($s.MaxScore))"
+})
+
+## Critical Issues ($($AuditResults.Issues.Critical.Count))
+$(if ($AuditResults.Issues.Critical.Count -gt 0) {
+    foreach ($issue in $AuditResults.Issues.Critical) {
+        "- [$($issue.Category)] $($issue.Message)"
+        if ($issue.File) { "  - File: ``$($issue.File)``" }
+        if ($issue.Recommendation) { "  - **Recommendation:** $($issue.Recommendation)" }
     }
-    
-    # Estimate coverage based on test file ratio (simplified)
-    $srcFiles = (Get-CSharpFiles $srcPath).Count
-    $estimatedCoverage = if ($srcFiles -gt 0) { [Math]::Min(100, ($totalTestFiles / $srcFiles) * 100 * 2) } else { 0 }
-    
-    Write-Host "   📊 Estimated Test Coverage: $($estimatedCoverage.ToString('F1'))%" -ForegroundColor $(if ($estimatedCoverage -ge 70) { "Green" } elseif ($estimatedCoverage -ge 50) { "Yellow" } else { "Red" })
-    Write-Host "   📊 Test Infrastructure Score: $testScore/100" -ForegroundColor Cyan
-    Write-Host ""
-    
-    return @{
-        Score = $testScore
-        EstimatedCoverage = $estimatedCoverage
-        TotalTestFiles = $totalTestFiles
+} else { "*No critical issues found*" })
+
+## High Priority Issues ($($AuditResults.Issues.High.Count))
+$(if ($AuditResults.Issues.High.Count -gt 0) {
+    foreach ($issue in $AuditResults.Issues.High) {
+        "- [$($issue.Category)] $($issue.Message)"
+        if ($issue.Recommendation) { "  - **Recommendation:** $($issue.Recommendation)" }
     }
+} else { "*No high priority issues found*" })
+
+---
+*Report generated by Enterprise Audit System*
+"@
+    
+    $mdPath = Join-Path $OutputPath "audit-$($AuditConfig.Timestamp).md"
+    $mdReport | Out-File $mdPath -Encoding UTF8
+    Write-Host "Markdown report saved: $mdPath" -ForegroundColor Cyan
+    
+    return $finalScore
 }
 
-# Main audit execution
-Write-Host "🔍 Starting comprehensive audit of: $rootPath" -ForegroundColor White
-Write-Host ""
+# ============================================================================
+# MAIN EXECUTION
+# ============================================================================
 
-# Get all source files
-$allFiles = Get-CSharpFiles $srcPath
-if ($allFiles.Count -eq 0) {
-    Write-Host "❌ No C# files found in $srcPath" -ForegroundColor Red
-    exit 1
-}
-
-# Run all analyses
-$architectureResults = Analyze-Architecture $srcPath
-$codeQualityResults = Analyze-CodeQuality $allFiles
-$testResults = Analyze-TestCoverage $rootPath
-
-# Calculate duplication
-Write-Host "🔍 CODE DUPLICATION ANALYSIS" -ForegroundColor Yellow
-Write-Host "============================" -ForegroundColor Gray
-$duplicationPercentage = Measure-CodeDuplication $allFiles
-Write-Host "   📊 Estimated Code Duplication: $duplicationPercentage%" -ForegroundColor $(if ($duplicationPercentage -le 5) { "Green" } elseif ($duplicationPercentage -le 10) { "Yellow" } else { "Red" })
-Write-Host ""
-
-# Calculate final comprehensive score
-$finalScore = (
-    ($architectureResults.Score * 0.25) +           # 25% Architecture
-    ($codeQualityResults.Score * 0.40) +            # 40% Code Quality  
-    ($testResults.Score * 0.15) +                   # 15% Testing
-    ((100 - $duplicationPercentage * 10) * 0.10) +  # 10% Duplication
-    (100 * 0.10)                                    # 10% Project Structure (assume 100%)
-)
-
-# Generate comprehensive report
-Write-Host "🎯 COMPREHENSIVE AUDIT RESULTS" -ForegroundColor Cyan
-Write-Host "===============================" -ForegroundColor Gray
-Write-Host ""
-
-Write-Host "📊 CATEGORY SCORES:" -ForegroundColor White
-Write-Host "   🏗️  Architecture Compliance: $($architectureResults.Score.ToString('F1'))/100 (25% weight)" -ForegroundColor $(if ($architectureResults.Score -ge 80) { "Green" } elseif ($architectureResults.Score -ge 60) { "Yellow" } else { "Red" })
-Write-Host "   ⚡ Code Quality: $($codeQualityResults.Score.ToString('F1'))/100 (40% weight)" -ForegroundColor $(if ($codeQualityResults.Score -ge 80) { "Green" } elseif ($codeQualityResults.Score -ge 60) { "Yellow" } else { "Red" })
-Write-Host "   🧪 Test Coverage: $($testResults.Score.ToString('F1'))/100 (15% weight)" -ForegroundColor $(if ($testResults.Score -ge 80) { "Green" } elseif ($testResults.Score -ge 60) { "Yellow" } else { "Red" })
-Write-Host "   🔄 Code Duplication: $((100 - $duplicationPercentage * 10).ToString('F1'))/100 (10% weight)" -ForegroundColor $(if ($duplicationPercentage -le 5) { "Green" } elseif ($duplicationPercentage -le 10) { "Yellow" } else { "Red" })
-Write-Host "   📁 Project Structure: 100.0/100 (10% weight)" -ForegroundColor Green
-Write-Host ""
-
-Write-Host "🏆 OVERALL QUALITY SCORE: $($finalScore.ToString('F1'))/100" -ForegroundColor $(if ($finalScore -ge 80) { "Green" } elseif ($finalScore -ge 60) { "Yellow" } else { "Red" })
-
-# Grade assignment
-$grade = ""
-$status = ""
-if ($finalScore -ge 90) { $grade = "A+"; $status = "EXCELLENT" }
-elseif ($finalScore -ge 85) { $grade = "A"; $status = "VERY GOOD" }
-elseif ($finalScore -ge 80) { $grade = "A-"; $status = "GOOD" }
-elseif ($finalScore -ge 75) { $grade = "B+"; $status = "ABOVE AVERAGE" }
-elseif ($finalScore -ge 70) { $grade = "B"; $status = "SATISFACTORY" }
-elseif ($finalScore -ge 65) { $grade = "B-"; $status = "BELOW AVERAGE" }
-elseif ($finalScore -ge 60) { $grade = "C+"; $status = "NEEDS IMPROVEMENT" }
-elseif ($finalScore -ge 55) { $grade = "C"; $status = "POOR" }
-else { $grade = "D"; $status = "CRITICAL" }
-
-Write-Host "🎖️  GRADE: $grade ($status)" -ForegroundColor $(if ($finalScore -ge 80) { "Green" } elseif ($finalScore -ge 60) { "Yellow" } else { "Red" })
-Write-Host ""
-
-# Detailed recommendations
-Write-Host "💡 RECOMMENDATIONS:" -ForegroundColor Yellow
-Write-Host "===================" -ForegroundColor Gray
-
-if ($finalScore -ge 85) {
-    Write-Host "✨ Excellent work! Your codebase meets industry standards." -ForegroundColor Green
-    Write-Host "   Focus on maintaining quality and monitoring technical debt." -ForegroundColor Gray
-} else {
-    $totalViolations = ($codeQualityResults.Violations.Values | Measure-Object -Sum).Sum
-    Write-Host "🔧 Priority Actions Required:" -ForegroundColor Yellow
+try {
+    Write-Host "Enterprise Documentation Platform - Comprehensive Audit" -ForegroundColor Cyan
+    Write-Host "Started: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Gray
+    Write-Host "Project: $ProjectRoot`n" -ForegroundColor Gray
     
-    if ($codeQualityResults.Violations.Complexity -gt 0) {
-        Write-Host "   1. Reduce complexity in $($codeQualityResults.Violations.Complexity) methods (refactor conditional logic)" -ForegroundColor White
+    # Verify project exists
+    if (-not (Test-Path $ProjectRoot)) {
+        throw "Project root not found: $ProjectRoot"
     }
-    if ($codeQualityResults.Violations.MethodLength -gt 0) {
-        Write-Host "   2. Break down $($codeQualityResults.Violations.MethodLength) long methods (Extract Method pattern)" -ForegroundColor White
+    
+    # Run all audits
+    Test-ProjectStructure
+    Test-CodeQuality
+    Test-Security
+    Test-Documentation
+    Test-TestingInfrastructure
+    Test-Performance
+    Test-Maintainability
+    
+    # Generate report
+    $finalScore = New-AuditReport
+    
+    # Determine exit code
+    $exitCode = 0
+    $criticalCount = $AuditResults.Issues.Critical.Count
+    
+    if ($criticalCount -gt 0) {
+        Write-Host "`n[FAILED] $criticalCount critical issues must be resolved!" -ForegroundColor Red
+        $exitCode = 1
+    } elseif ($finalScore -lt $MinimumScore) {
+        Write-Host "`n[FAILED] Score $($finalScore.ToString('F1')) is below minimum threshold of $MinimumScore" -ForegroundColor Red
+        $exitCode = 1
+    } elseif ($FailOnWarnings -and $AuditResults.Issues.High.Count -gt 0) {
+        Write-Host "`n[FAILED] High priority issues found with -FailOnWarnings enabled" -ForegroundColor Red
+        $exitCode = 1
+    } else {
+        Write-Host "`n[PASSED] Audit completed successfully!" -ForegroundColor Green
     }
-    if ($codeQualityResults.Violations.ClassLength -gt 0) {
-        Write-Host "   3. Split $($codeQualityResults.Violations.ClassLength) large classes (Single Responsibility Principle)" -ForegroundColor White
-    }
-    if ($codeQualityResults.Violations.Documentation -gt 0) {
-        Write-Host "   4. Add XML documentation to $($codeQualityResults.Violations.Documentation) public APIs" -ForegroundColor White
-    }
-    if ($duplicationPercentage -gt 5) {
-        Write-Host "   5. Eliminate code duplication ($duplicationPercentage% detected)" -ForegroundColor White
-    }
-    if ($testResults.EstimatedCoverage -lt 70) {
-        Write-Host "   6. Increase test coverage (currently $($testResults.EstimatedCoverage.ToString('F1'))%, target: 70%+)" -ForegroundColor White
-    }
+    
+    Write-Host "`nCompleted: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Gray
+    exit $exitCode
+    
+} catch {
+    Write-Host "`n[ERROR] Audit failed: $_" -ForegroundColor Red
+    Write-Host $_.ScriptStackTrace -ForegroundColor Red
+    exit 2
 }
-
-Write-Host ""
-Write-Host "📋 AUDIT SUMMARY:" -ForegroundColor Cyan
-Write-Host "   Files Analyzed: $($codeQualityResults.TotalFiles)" -ForegroundColor Gray
-Write-Host "   Lines of Code: $($codeQualityResults.TotalLines.ToString('N0'))" -ForegroundColor Gray
-Write-Host "   Avg Complexity: $($codeQualityResults.AvgComplexity)" -ForegroundColor Gray
-Write-Host "   Test Files: $($testResults.TotalTestFiles)" -ForegroundColor Gray
-Write-Host "   Audit Duration: $((Get-Date).Subtract($AuditResults.StartTime).TotalSeconds.ToString('F1'))s" -ForegroundColor Gray
-Write-Host ""
-Write-Host "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Gray
-
-exit [int]$finalScore

@@ -1,0 +1,61 @@
+﻿{
+    "gates":  {
+                  "performance":  {
+                                      "maxBuildTime":  300,
+                                      "maxDeployTime":  600,
+                                      "maxTestTime":  180,
+                                      "enabled":  true
+                                  },
+                  "security":  {
+                                   "allowedVulnerabilities":  {
+                                                                  "low":  10,
+                                                                  "critical":  0,
+                                                                  "medium":  5,
+                                                                  "high":  0
+                                                              },
+                                   "blockOnCritical":  true,
+                                   "blockOnHigh":  true,
+                                   "enabled":  true
+                               },
+                  "codeQuality":  {
+                                      "maximumCyclomaticComplexity":  15,
+                                      "maximumLinesPerMethod":  100,
+                                      "blockOnCodeSmells":  false,
+                                      "minimumMaintainabilityIndex":  70,
+                                      "enabled":  true
+                                  },
+                  "coverage":  {
+                                   "minimumLineCoverage":  80,
+                                   "excludePatterns":  [
+                                                           "**/Migrations/**",
+                                                           "**/*Tests.cs",
+                                                           "**/Program.cs"
+                                                       ],
+                                   "minimumBranchCoverage":  75,
+                                   "enabled":  true
+                               },
+                  "documentation":  {
+                                        "requireArchitectureDocs":  true,
+                                        "minimumWordCount":  100,
+                                        "requireApiDocs":  true,
+                                        "requireReadme":  true,
+                                        "enabled":  true
+                                    }
+              },
+    "lastUpdated":  "2025-11-06",
+    "version":  "1.0.0",
+    "enforcement":  {
+                        "notifications":  {
+                                              "onFailure":  [
+                                                                "email",
+                                                                "slack"
+                                                            ],
+                                              "onSuccess":  [
+                                                                "slack"
+                                                            ]
+                                          },
+                        "requireApprovalForOverride":  true,
+                        "autoAssignReviewers":  true,
+                        "blockPullRequest":  true
+                    }
+}
