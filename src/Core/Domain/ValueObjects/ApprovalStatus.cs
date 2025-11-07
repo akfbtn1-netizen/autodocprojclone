@@ -71,11 +71,15 @@ public sealed class ApprovalStatus : BaseValueObject
         return new ApprovalStatus("Expired", comments, DateTime.UtcNow, null);
     }
 
-    // Business rule methods
+    /// <summary>Whether the status is approved</summary>
     public bool IsApproved => Status == "Approved";
+    /// <summary>Whether the status is pending approval</summary>
     public bool IsPending => Status == "Pending";
+    /// <summary>Whether the status is rejected</summary>
     public bool IsRejected => Status == "Rejected";
+    /// <summary>Whether the status requires action</summary>
     public bool RequiresAction => Status == "Pending";
+    /// <summary>Whether the status is in a terminal state</summary>
     public bool IsTerminal => Status is "Approved" or "Rejected" or "Expired";
 
     /// <summary>

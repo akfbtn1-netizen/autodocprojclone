@@ -5,10 +5,14 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Core.Infrastructure.Migrations
 {
-    /// <inheritdoc />
+    /// <summary>
+    /// Initial database migration creating all enterprise documentation platform tables
+    /// </summary>
     public partial class InitialCreate : Migration
     {
-        /// <inheritdoc />
+        /// <summary>
+        /// Creates all initial database tables and constraints
+        /// </summary>
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(

@@ -30,8 +30,13 @@ public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TReques
             return await next();
         }
 
-        var context = new ValidationContext<TRequest>(request);
+        await ValidateRequestAsync(request, cancellationToken);
+        return await next();
+    }
 
+    private async Task ValidateRequestAsync(TRequest request, CancellationToken cancellationToken)
+    {
+        var context = new ValidationContext<TRequest>(request);
         var validationResults = await Task.WhenAll(
             _validators.Select(v => v.ValidateAsync(context, cancellationToken)));
 
@@ -44,8 +49,6 @@ public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TReques
         {
             throw new ApplicationValidationException(failures);
         }
-
-        return await next();
     }
 }
 

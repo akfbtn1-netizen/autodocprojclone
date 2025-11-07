@@ -10,28 +10,42 @@ using Enterprise.Documentation.Core.Application.Interfaces;
 
 namespace Enterprise.Documentation.Api.Controllers;
 
+/// <summary>User login request model</summary>
 public class LoginRequest
 {
+    /// <summary>User email address</summary>
     public string Email { get; set; } = string.Empty;
+    /// <summary>User password</summary>
     public string Password { get; set; } = string.Empty;
 }
 
+/// <summary>Login response model</summary>
 public class LoginResponse
 {
+    /// <summary>JWT access token</summary>
     public string Token { get; set; } = string.Empty;
+    /// <summary>Refresh token for token renewal</summary>
     public string RefreshToken { get; set; } = string.Empty;
+    /// <summary>Token expiration timestamp</summary>
     public DateTime ExpiresAt { get; set; }
+    /// <summary>User information</summary>
     public UserInfo User { get; set; } = new();
 }
 
+/// <summary>User information model</summary>
 public class UserInfo
 {
+    /// <summary>User unique identifier</summary>
     public Guid Id { get; set; }
+    /// <summary>User email address</summary>
     public string Email { get; set; } = string.Empty;
+    /// <summary>User display name</summary>
     public string DisplayName { get; set; } = string.Empty;
+    /// <summary>User assigned roles</summary>
     public List<string> Roles { get; set; } = new();
 }
 
+/// <summary>Authentication controller handling user login and token management</summary>
 [ApiController]
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
@@ -40,6 +54,10 @@ public class AuthController : ControllerBase
     private readonly IConfiguration _configuration;
     private readonly ILogger<AuthController> _logger;
 
+    /// <summary>Initializes authentication controller</summary>
+    /// <param name="userRepository">User repository service</param>
+    /// <param name="configuration">Application configuration</param>
+    /// <param name="logger">Logger instance</param>
     public AuthController(
         IUserRepository userRepository,
         IConfiguration configuration,

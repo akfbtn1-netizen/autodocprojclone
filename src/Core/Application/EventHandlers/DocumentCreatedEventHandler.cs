@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Enterprise.Documentation.Core.Domain.Entities;
 using Enterprise.Documentation.Core.Domain.ValueObjects;
+using Enterprise.Documentation.Core.Domain.Events;
 using Enterprise.Documentation.Core.Application.Interfaces;
 
 namespace Enterprise.Documentation.Core.Application.EventHandlers;

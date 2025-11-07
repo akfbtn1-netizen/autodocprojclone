@@ -5,22 +5,39 @@ using Enterprise.Documentation.Core.Application.Interfaces;
 
 namespace Enterprise.Documentation.Api.Controllers;
 
+/// <summary>
+/// Request model for creating a new template
+/// </summary>
 public class CreateTemplateRequest
 {
+    /// <summary>Template name</summary>
     public string Name { get; set; } = string.Empty;
+    /// <summary>Template description</summary>
     public string Description { get; set; } = string.Empty;
+    /// <summary>Template content</summary>
     public string Content { get; set; } = string.Empty;
+    /// <summary>Template category</summary>
     public string Category { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Request model for updating an existing template
+/// </summary>
 public class UpdateTemplateRequest
 {
+    /// <summary>Template name</summary>
     public string Name { get; set; } = string.Empty;
+    /// <summary>Template description</summary>
     public string Description { get; set; } = string.Empty;
+    /// <summary>Template content</summary>
     public string Content { get; set; } = string.Empty;
+    /// <summary>Template category</summary>
     public string Category { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Controller for managing templates
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class TemplatesController : ControllerBase
@@ -29,6 +46,12 @@ public class TemplatesController : ControllerBase
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<TemplatesController> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the TemplatesController
+    /// </summary>
+    /// <param name="templateRepository">Template repository</param>
+    /// <param name="unitOfWork">Unit of work</param>
+    /// <param name="logger">Logger instance</param>
     public TemplatesController(ITemplateRepository templateRepository, IUnitOfWork unitOfWork, ILogger<TemplatesController> logger)
     {
         _templateRepository = templateRepository ?? throw new ArgumentNullException(nameof(templateRepository));

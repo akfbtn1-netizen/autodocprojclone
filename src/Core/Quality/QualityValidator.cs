@@ -48,12 +48,24 @@ public class QualityValidator
             
             result.CalculateScore();
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
         {
             result.ComplexityViolations.Add(new QualityViolation
             {
                 RuleName = "ParseError",
-                Message = $"Failed to parse file: {ex.Message}",
+                Message = $"Invalid argument: {ex.Message}",
+                Severity = "Error",
+                FileName = fileName,
+                LineNumber = 1,
+                Column = 1
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            result.ComplexityViolations.Add(new QualityViolation
+            {
+                RuleName = "ParseError", 
+                Message = $"Parse operation failed: {ex.Message}",
                 Severity = "Error",
                 FileName = fileName,
                 LineNumber = 1,

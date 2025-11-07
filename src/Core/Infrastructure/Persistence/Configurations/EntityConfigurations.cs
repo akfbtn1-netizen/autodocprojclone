@@ -17,7 +17,13 @@ public class DocumentConfiguration : IEntityTypeConfiguration<Document>
     /// <param name="builder">Entity type builder</param>
     public void Configure(EntityTypeBuilder<Document> builder)
     {
-        // Table configuration
+        ConfigureTableAndKeys(builder);
+        ConfigureProperties(builder);
+        ConfigureValueObjects(builder);
+    }
+
+    private static void ConfigureTableAndKeys(EntityTypeBuilder<Document> builder)
+    {
         builder.ToTable("Documents");
         builder.HasKey(d => d.Id);
 
@@ -33,30 +39,20 @@ public class DocumentConfiguration : IEntityTypeConfiguration<Document>
             .HasConversion(
                 id => id != null ? id.Value : (Guid?)null,
                 value => value.HasValue ? new TemplateId(value.Value) : null);
+    }
 
-        // Basic properties
-        builder.Property(d => d.Title)
-            .IsRequired()
-            .HasMaxLength(255);
+    private static void ConfigureProperties(EntityTypeBuilder<Document> builder)
+    {
+        builder.Property(d => d.Title).IsRequired().HasMaxLength(255);
+        builder.Property(d => d.Description).HasMaxLength(1000);
+        builder.Property(d => d.Category).IsRequired().HasMaxLength(100);
+        builder.Property(d => d.DocumentVersion).IsRequired().HasMaxLength(20);
+        builder.Property(d => d.ContentType).IsRequired().HasMaxLength(50);
+        builder.Property(d => d.Content).HasColumnType("text");
+    }
 
-        builder.Property(d => d.Description)
-            .HasMaxLength(1000);
-
-        builder.Property(d => d.Category)
-            .IsRequired()
-            .HasMaxLength(100);
-
-        builder.Property(d => d.DocumentVersion)
-            .IsRequired()
-            .HasMaxLength(20);
-
-        builder.Property(d => d.ContentType)
-            .IsRequired()
-            .HasMaxLength(50);
-
-        builder.Property(d => d.Content)
-            .HasColumnType("text");
-
+    private static void ConfigureValueObjects(EntityTypeBuilder<Document> builder)
+    {
         // Tags as JSON array
         builder.Property(d => d.Tags)
             .HasConversion(

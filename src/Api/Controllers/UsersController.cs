@@ -5,22 +5,33 @@ using Enterprise.Documentation.Core.Application.Interfaces;
 
 namespace Enterprise.Documentation.Api.Controllers;
 
+/// <summary>Create user request model</summary>
 public class CreateUserRequest
 {
+    /// <summary>User email address</summary>
     public string Email { get; set; } = string.Empty;
+    /// <summary>User first name</summary>
     public string FirstName { get; set; } = string.Empty;
+    /// <summary>User last name</summary>
     public string LastName { get; set; } = string.Empty;
+    /// <summary>User role assignment</summary>
     public string Role { get; set; } = string.Empty;
 }
 
+/// <summary>Update user request model</summary>
 public class UpdateUserRequest
 {
+    /// <summary>User email address</summary>
     public string Email { get; set; } = string.Empty;
+    /// <summary>User first name</summary>
     public string FirstName { get; set; } = string.Empty;
+    /// <summary>User last name</summary>
     public string LastName { get; set; } = string.Empty;
+    /// <summary>User role assignment</summary>
     public string Role { get; set; } = string.Empty;
 }
 
+/// <summary>Users management controller</summary>
 [ApiController]
 [Route("api/[controller]")]
 public class UsersController : ControllerBase

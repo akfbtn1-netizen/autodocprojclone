@@ -41,12 +41,7 @@ public class DocumentRepository : Repository<Document, DocumentId>, IDocumentRep
         int pageSize = 10,
         CancellationToken cancellationToken = default)
     {
-        var query = DbSet.AsQueryable();
-        
-        if (specification != null)
-        {
-            query = query.Where(specification.ToExpression());
-        }
+        var query = ApplySpecification(DbSet.AsQueryable(), specification);
         
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
@@ -55,6 +50,11 @@ public class DocumentRepository : Repository<Document, DocumentId>, IDocumentRep
             .ToListAsync(cancellationToken);
         
         return new PagedResult<Document>(items.AsReadOnly(), totalCount, pageNumber, pageSize);
+    }
+
+    private static IQueryable<Document> ApplySpecification(IQueryable<Document> query, ISpecification<Document>? specification)
+    {
+        return specification != null ? query.Where(specification.ToExpression()) : query;
     }
 
     public async Task<Document> AddAsync(Document document, CancellationToken cancellationToken = default)
