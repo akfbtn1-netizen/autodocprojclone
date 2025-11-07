@@ -40,16 +40,8 @@ public class DocumentsController : ControllerBase
     {
         try
         {
-            _logger.LogInformation("Creating new document with title: {Title}", command.Title);
-            
-            var result = await _mediator.Send(command, cancellationToken);
-            
-            _logger.LogInformation("Successfully created document with ID: {DocumentId}", result.Id);
-            
-            return CreatedAtAction(
-                nameof(GetDocument),
-                new { id = result.Id },
-                result);
+            var result = await ExecuteCreateDocumentAsync(command, cancellationToken);
+            return CreatedAtAction(nameof(GetDocument), new { id = result.Id }, result);
         }
         catch (ArgumentException ex)
         {
@@ -61,6 +53,14 @@ public class DocumentsController : ControllerBase
             _logger.LogError(ex, "Error creating document");
             return StatusCode(500, new { error = "An error occurred while creating the document" });
         }
+    }
+
+    private async Task<DocumentDto> ExecuteCreateDocumentAsync(CreateDocumentCommand command, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Creating new document with title: {Title}", command.Title);
+        var result = await _mediator.Send(command, cancellationToken);
+        _logger.LogInformation("Successfully created document with ID: {DocumentId}", result.Id);
+        return result;
     }
 
     /// <summary>
@@ -154,19 +154,14 @@ public class DocumentsController : ControllerBase
         [FromRoute] Guid id,
         [FromBody] UpdateDocumentCommand command)
     {
+        if (command.DocumentId != id)
+        {
+            return BadRequest(new { error = "Route ID does not match command ID" });
+        }
+
         try
         {
-            if (command.DocumentId != id)
-            {
-                return BadRequest(new { error = "Route ID does not match command ID" });
-            }
-
-            _logger.LogInformation("Updating document with ID: {DocumentId}", id);
-            
-            var result = await _mediator.Send(command);
-            
-            _logger.LogInformation("Successfully updated document with ID: {DocumentId}", id);
-            
+            var result = await ExecuteUpdateDocumentAsync(command, id);
             return Ok(result);
         }
         catch (ArgumentException ex)
@@ -179,6 +174,14 @@ public class DocumentsController : ControllerBase
             _logger.LogError(ex, "Error updating document with ID: {DocumentId}", id);
             return StatusCode(500, new { error = "An error occurred while updating the document" });
         }
+    }
+
+    private async Task<DocumentDto> ExecuteUpdateDocumentAsync(UpdateDocumentCommand command, Guid id)
+    {
+        _logger.LogInformation("Updating document with ID: {DocumentId}", id);
+        var result = await _mediator.Send(command);
+        _logger.LogInformation("Successfully updated document with ID: {DocumentId}", id);
+        return result;
     }
 
     /// <summary>

@@ -1,14 +1,13 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Core.Infrastructure.Migrations
-{
-    /// <summary>
-    /// Initial database migration creating all enterprise documentation platform tables
-    /// </summary>
-    public partial class InitialCreate : Migration
+namespace Core.Infrastructure.Migrations;
+
+/// <summary>
+/// Initial database migration creating all enterprise documentation platform tables
+/// </summary>
+public partial class InitialCreate : Migration
     {
         /// <summary>
         /// Creates all initial database tables and constraints
@@ -382,4 +381,3 @@ namespace Core.Infrastructure.Migrations
                 name: "Versions");
         }
     }
-}
