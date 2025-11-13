@@ -17,20 +17,24 @@ public class DocumentRepository : Repository<Document, DocumentId>, IDocumentRep
 
     public new async Task<Document?> GetByIdAsync(DocumentId id, CancellationToken cancellationToken = default)
     {
-        return await DbSet.FirstOrDefaultAsync(d => d.Id == id, cancellationToken);
+        return await DbSet
+            .AsNoTracking()
+            .FirstOrDefaultAsync(d => d.Id == id, cancellationToken);
     }
 
     public async Task<IReadOnlyList<Document>> GetBySpecificationAsync(
         ISpecification<Document> specification,
         CancellationToken cancellationToken = default)
     {
-        var query = DbSet.AsQueryable();
-        
+        var query = DbSet
+            .AsNoTracking()
+            .AsQueryable();
+
         if (specification != null)
         {
             query = query.Where(specification.ToExpression());
         }
-        
+
         var result = await query.ToListAsync(cancellationToken);
         return result.AsReadOnly();
     }
@@ -41,7 +45,7 @@ public class DocumentRepository : Repository<Document, DocumentId>, IDocumentRep
         int pageSize = 10,
         CancellationToken cancellationToken = default)
     {
-        var query = ApplySpecification(DbSet.AsQueryable(), specification);
+        var query = ApplySpecification(DbSet.AsNoTracking().AsQueryable(), specification);
         
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
@@ -82,18 +86,20 @@ public class DocumentRepository : Repository<Document, DocumentId>, IDocumentRep
         int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var query = DbSet.AsQueryable();
-        
+        var query = DbSet
+            .AsNoTracking()
+            .AsQueryable();
+
         if (specification != null)
         {
             query = query.Where(specification.ToExpression());
         }
-        
+
         var result = await query
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
-        
+
         return result.AsReadOnly();
     }
 
@@ -101,13 +107,15 @@ public class DocumentRepository : Repository<Document, DocumentId>, IDocumentRep
         ISpecification<Document> specification,
         CancellationToken cancellationToken = default)
     {
-        var query = DbSet.AsQueryable();
-        
+        var query = DbSet
+            .AsNoTracking()
+            .AsQueryable();
+
         if (specification != null)
         {
             query = query.Where(specification.ToExpression());
         }
-        
+
         return await query.CountAsync(cancellationToken);
     }
 }

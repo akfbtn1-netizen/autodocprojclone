@@ -17,12 +17,15 @@ public class VersionRepository : Repository<DomainVersion, VersionId>, IVersionR
 
     public new async Task<DomainVersion?> GetByIdAsync(VersionId id, CancellationToken cancellationToken = default)
     {
-        return await DbSet.FirstOrDefaultAsync(v => v.Id == id, cancellationToken);
+        return await DbSet
+            .AsNoTracking()
+            .FirstOrDefaultAsync(v => v.Id == id, cancellationToken);
     }
 
     public async Task<IReadOnlyList<DomainVersion>> GetByDocumentIdAsync(DocumentId documentId, CancellationToken cancellationToken = default)
     {
         var result = await DbSet
+            .AsNoTracking()
             .Where(v => v.DocumentId == documentId)
             .OrderByDescending(v => v.VersionNumber)
             .ToListAsync(cancellationToken);
@@ -32,6 +35,7 @@ public class VersionRepository : Repository<DomainVersion, VersionId>, IVersionR
     public async Task<DomainVersion?> GetCurrentVersionAsync(DocumentId documentId, CancellationToken cancellationToken = default)
     {
         return await DbSet
+            .AsNoTracking()
             .Where(v => v.DocumentId == documentId)
             .OrderByDescending(v => v.VersionNumber)
             .FirstOrDefaultAsync(cancellationToken);
@@ -47,7 +51,9 @@ public class VersionRepository : Repository<DomainVersion, VersionId>, IVersionR
 
     public async Task<bool> ExistsAsync(VersionId id, CancellationToken cancellationToken = default)
     {
-        return await DbSet.AnyAsync(v => v.Id == id, cancellationToken);
+        return await DbSet
+            .AsNoTracking()
+            .AnyAsync(v => v.Id == id, cancellationToken);
     }
 
     public async Task<DomainVersion> AddAsync(DomainVersion version, CancellationToken cancellationToken = default)

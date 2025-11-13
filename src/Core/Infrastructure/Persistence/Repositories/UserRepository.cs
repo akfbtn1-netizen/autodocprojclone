@@ -17,12 +17,16 @@ public class UserRepository : Repository<User, UserId>, IUserRepository
 
     public new async Task<User?> GetByIdAsync(UserId id, CancellationToken cancellationToken = default)
     {
-        return await DbSet.FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
+        return await DbSet
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
     }
 
     public async Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
     {
-        return await DbSet.FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
+        return await DbSet
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
     }
 
 
@@ -31,25 +35,31 @@ public class UserRepository : Repository<User, UserId>, IUserRepository
         ISpecification<User> specification,
         CancellationToken cancellationToken = default)
     {
-        var query = DbSet.AsQueryable();
-        
+        var query = DbSet
+            .AsNoTracking()
+            .AsQueryable();
+
         if (specification != null)
         {
             query = query.Where(specification.ToExpression());
         }
-        
+
         var result = await query.ToListAsync(cancellationToken);
         return result.AsReadOnly();
     }
 
     public async Task<bool> ExistsAsync(UserId id, CancellationToken cancellationToken = default)
     {
-        return await DbSet.AnyAsync(u => u.Id == id, cancellationToken);
+        return await DbSet
+            .AsNoTracking()
+            .AnyAsync(u => u.Id == id, cancellationToken);
     }
 
     public async Task<bool> EmailExistsAsync(string email, CancellationToken cancellationToken = default)
     {
-        return await DbSet.AnyAsync(u => u.Email == email, cancellationToken);
+        return await DbSet
+            .AsNoTracking()
+            .AnyAsync(u => u.Email == email, cancellationToken);
     }
 
 
