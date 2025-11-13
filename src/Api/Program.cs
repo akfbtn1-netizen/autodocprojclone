@@ -4,7 +4,11 @@ using Enterprise.Documentation.Core.Application.Interfaces;
 using Enterprise.Documentation.Api.Services;
 using FluentValidation;
 using System.Diagnostics;
+using System.IO.Compression;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
@@ -83,6 +87,10 @@ builder.Logging.AddDebug();
 // Add HTTP Context Accessor for current user service
 builder.Services.AddHttpContextAccessor();
 
+// Add Password Hasher for secure password verification
+builder.Services.AddScoped<Microsoft.AspNetCore.Identity.IPasswordHasher<Enterprise.Documentation.Core.Domain.Entities.User>,
+    Microsoft.AspNetCore.Identity.PasswordHasher<Enterprise.Documentation.Core.Domain.Entities.User>>();
+
 // Add Application Services
 builder.Services.AddScoped<ICurrentUserService, Enterprise.Documentation.Api.Services.CurrentUserService>();
 builder.Services.AddScoped<IAuthorizationService, Enterprise.Documentation.Api.Services.SimpleAuthorizationService>();
@@ -104,7 +112,23 @@ builder.Services.AddPersistence(builder.Configuration);
 
 // JWT Authentication Configuration
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["SecretKey"] ?? "your-super-secret-key-that-is-at-least-32-characters-long-for-development";
+
+// CRITICAL: JWT secret MUST come from environment variable or user secrets
+// For development: dotnet user-secrets set "JwtSettings:SecretKey" "your-secret-key-here"
+// For production: Set JWT_SECRET_KEY environment variable in Azure App Service
+var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY")
+    ?? builder.Configuration["JwtSettings:SecretKey"]
+    ?? throw new InvalidOperationException(
+        "JWT Secret Key not configured. Set JWT_SECRET_KEY environment variable or use: " +
+        "dotnet user-secrets set \"JwtSettings:SecretKey\" \"your-key-at-least-32-chars\"");
+
+if (secretKey.Length < 32)
+{
+    throw new InvalidOperationException(
+        "JWT Secret Key must be at least 32 characters long for security. " +
+        $"Current length: {secretKey.Length}");
+}
+
 var issuer = jwtSettings["Issuer"] ?? "Enterprise.Documentation.Api";
 var audience = jwtSettings["Audience"] ?? "Enterprise.Documentation.Client";
 
@@ -126,19 +150,130 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+// Add CORS with specific origins (SECURITY FIX)
+var corsSettings = builder.Configuration.GetSection("Cors");
+var allowedOrigins = corsSettings.GetSection("AllowedOrigins").Get<string[]>() ?? new[] { "https://localhost:5001" };
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("SecureCorsPolicy", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+              .AllowedMethods("GET", "POST", "PUT", "DELETE")
+              .AllowedHeaders("Content-Type", "Authorization", "X-Correlation-ID")
+              .AllowCredentials()
+              .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
+    });
+});
+
+// Add Rate Limiting (SECURITY FIX)
+builder.Services.AddRateLimiter(options =>
+{
+    // Global rate limit
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.User?.Identity?.Name ?? context.Request.Headers.Host.ToString(),
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 100,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 10
+            }));
+
+    // Auth endpoint rate limit (stricter)
+    options.AddFixedWindowLimiter("auth", options =>
+    {
+        options.PermitLimit = 5;
+        options.Window = TimeSpan.FromMinutes(1);
+        options.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        options.QueueLimit = 0;
+    });
+});
+
+// Add Response Compression (PERFORMANCE FIX)
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<GzipCompressionProvider>();
+    options.Providers.Add<BrotliCompressionProvider>();
+});
+
+builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+{
+    options.Level = System.IO.Compression.CompressionLevel.Optimal;
+});
+
+builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
+{
+    options.Level = System.IO.Compression.CompressionLevel.Optimal;
+});
+
+// Add Memory Cache for performance (PERFORMANCE FIX)
+builder.Services.AddMemoryCache();
+
 // Add Controllers
 builder.Services.AddControllers();
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+
+// Global Exception Handler (SECURITY FIX)
 if (app.Environment.IsDevelopment())
 {
+    app.UseDeveloperExceptionPage();
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    app.UseExceptionHandler(errorApp =>
+    {
+        errorApp.Run(async context =>
+        {
+            var exceptionHandlerPathFeature = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerPathFeature>();
+            var exception = exceptionHandlerPathFeature?.Error;
+
+            var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+            logger.LogError(exception, "Unhandled exception for {Path}", context.Request.Path);
+
+            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            context.Response.ContentType = "application/json";
+
+            await context.Response.WriteAsJsonAsync(new
+            {
+                type = "https://tools.ietf.org/html/rfc7231#section-6.6.1",
+                title = "An error occurred while processing your request",
+                status = 500,
+                traceId = Activity.Current?.Id ?? context.TraceIdentifier
+            });
+        });
+    });
+    app.UseHsts(); // Enable HSTS for production
+}
+
+// Response Compression (PERFORMANCE FIX)
+app.UseResponseCompression();
 
 app.UseHttpsRedirection();
+
+// CORS middleware (SECURITY FIX)
+app.UseCors("SecureCorsPolicy");
+
+// Security Headers Middleware (SECURITY FIX)
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Add("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.Add("X-Frame-Options", "DENY");
+    context.Response.Headers.Add("X-XSS-Protection", "1; mode=block");
+    context.Response.Headers.Add("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'");
+    context.Response.Headers.Add("Referrer-Policy", "strict-origin-when-cross-origin");
+    context.Response.Headers.Add("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+    await next();
+});
+
+// Rate Limiting (SECURITY FIX)
+app.UseRateLimiter();
 
 // Add authentication and authorization middleware
 app.UseAuthentication();

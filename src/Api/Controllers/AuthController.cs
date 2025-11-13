@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Enterprise.Documentation.Core.Domain.Entities;
 using Enterprise.Documentation.Core.Domain.ValueObjects;
@@ -53,19 +56,23 @@ public class AuthController : ControllerBase
     private readonly IUserRepository _userRepository;
     private readonly IConfiguration _configuration;
     private readonly ILogger<AuthController> _logger;
+    private readonly IPasswordHasher<User> _passwordHasher;
 
     /// <summary>Initializes authentication controller</summary>
     /// <param name="userRepository">User repository service</param>
     /// <param name="configuration">Application configuration</param>
     /// <param name="logger">Logger instance</param>
+    /// <param name="passwordHasher">Password hasher service</param>
     public AuthController(
         IUserRepository userRepository,
         IConfiguration configuration,
-        ILogger<AuthController> logger)
+        ILogger<AuthController> logger,
+        IPasswordHasher<User> passwordHasher)
     {
         _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
         _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _passwordHasher = passwordHasher ?? throw new ArgumentNullException(nameof(passwordHasher));
     }
 
     /// <summary>
@@ -75,9 +82,11 @@ public class AuthController : ControllerBase
     /// <returns>JWT token and user information</returns>
     [HttpPost("login")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth")] // ← SECURITY FIX: Rate limit auth endpoint (5 requests/minute)
     [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
@@ -88,22 +97,29 @@ public class AuthController : ControllerBase
                 return BadRequest(new { error = "Email and password are required" });
             }
 
-            _logger.LogInformation("Login attempt for user: {Email}", request.Email);
+            // Hash email for logging (GDPR compliance - don't log PII)
+            var emailHash = HashForLogging(request.Email);
+            _logger.LogInformation("Login attempt for user hash: {EmailHash}", emailHash);
 
             // Find user by email
             var user = await _userRepository.GetByEmailAsync(request.Email);
             if (user == null || !user.IsActive)
             {
-                _logger.LogWarning("Login failed - user not found or inactive: {Email}", request.Email);
+                _logger.LogWarning("Login failed - user not found or inactive. EmailHash: {EmailHash}", emailHash);
+                // Add small delay to prevent timing attacks
+                await Task.Delay(TimeSpan.FromMilliseconds(100));
                 return Unauthorized(new { error = "Invalid credentials" });
             }
 
-            // Note: In a real implementation, you would verify the password hash here
-            // For now, we'll accept any password for demo purposes
-            // if (!VerifyPassword(request.Password, user.PasswordHash))
-            // {
-            //     return Unauthorized(new { error = "Invalid credentials" });
-            // }
+            // Verify password hash
+            var verificationResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
+            if (verificationResult == PasswordVerificationResult.Failed)
+            {
+                _logger.LogWarning("Login failed - invalid password for user ID: {UserId}", user.Id.Value);
+                // TODO: Implement account lockout after 5 failed attempts
+                await Task.Delay(TimeSpan.FromMilliseconds(100)); // Prevent timing attacks
+                return Unauthorized(new { error = "Invalid credentials" });
+            }
 
             // Generate JWT token
             var token = GenerateJwtToken(user);
@@ -123,13 +139,19 @@ public class AuthController : ControllerBase
                 }
             };
 
-            _logger.LogInformation("User logged in successfully: {Email}", request.Email);
+            _logger.LogInformation("User logged in successfully. UserId: {UserId}", user.Id.Value);
             return Ok(response);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument during login");
+            return BadRequest(new { error = ex.Message });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error during login for user: {Email}", request.Email);
-            return StatusCode(StatusCodes.Status500InternalServerError, 
+            var emailHash = HashForLogging(request.Email);
+            _logger.LogError(ex, "Error during login for user hash: {EmailHash}", emailHash);
+            return StatusCode(StatusCodes.Status500InternalServerError,
                 new { error = "An error occurred during login" });
         }
     }
@@ -192,7 +214,12 @@ public class AuthController : ControllerBase
     private string GenerateJwtToken(User user)
     {
         var jwtSettings = _configuration.GetSection("JwtSettings");
-        var secretKey = jwtSettings["SecretKey"] ?? "your-super-secret-key-that-is-at-least-32-characters-long";
+
+        // Get secret key from environment variable (same as Program.cs)
+        var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY")
+            ?? _configuration["JwtSettings:SecretKey"]
+            ?? throw new InvalidOperationException("JWT Secret Key not configured");
+
         var issuer = jwtSettings["Issuer"] ?? "Enterprise.Documentation.Api";
         var audience = jwtSettings["Audience"] ?? "Enterprise.Documentation.Client";
 
@@ -222,6 +249,21 @@ public class AuthController : ControllerBase
 
     private string GenerateRefreshToken()
     {
-        return Guid.NewGuid().ToString("N");
+        // Use cryptographically secure random number generator
+        var randomBytes = new byte[32];
+        using var rng = RandomNumberGenerator.Create();
+        rng.GetBytes(randomBytes);
+        return Convert.ToBase64String(randomBytes);
+    }
+
+    /// <summary>
+    /// Hashes sensitive data for secure logging (GDPR compliance)
+    /// </summary>
+    /// <param name="value">Value to hash</param>
+    /// <returns>First 8 characters of SHA256 hash</returns>
+    private static string HashForLogging(string value)
+    {
+        var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(value));
+        return Convert.ToBase64String(hashBytes)[..8];
     }
 }

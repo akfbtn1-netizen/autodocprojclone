@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Enterprise.Documentation.Core.Domain.Entities;
 using Enterprise.Documentation.Core.Domain.ValueObjects;
 using Enterprise.Documentation.Core.Application.Interfaces;
@@ -40,6 +41,7 @@ public class UpdateTemplateRequest
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
+[Authorize] // ← SECURITY FIX: Require authentication for template management
 public class TemplatesController : ControllerBase
 {
     private readonly ITemplateRepository _templateRepository;

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Enterprise.Documentation.Core.Domain.Entities;
 using Enterprise.Documentation.Core.Domain.ValueObjects;
 using Enterprise.Documentation.Core.Application.Interfaces;
@@ -34,6 +35,7 @@ public class UpdateUserRequest
 /// <summary>Users management controller</summary>
 [ApiController]
 [Route("api/[controller]")]
+[Authorize] // ← SECURITY FIX: Require authentication for user management
 public class UsersController : ControllerBase
 {
     private readonly IUserRepository _userRepository;

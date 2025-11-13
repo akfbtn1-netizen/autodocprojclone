@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Enterprise.Documentation.Core.Application.Commands.Documents;
 using Enterprise.Documentation.Core.Application.Queries.Documents;
 using Enterprise.Documentation.Core.Application.Interfaces;
@@ -12,6 +13,7 @@ namespace Enterprise.Documentation.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
+[Authorize] // ← SECURITY FIX: Require authentication for all document operations
 [Produces("application/json")]
 public class DocumentsController : ControllerBase
 {
