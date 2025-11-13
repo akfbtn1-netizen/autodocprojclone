@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Text.Json;
 using Enterprise.Documentation.Core.Domain.Models;
@@ -165,19 +166,52 @@ public class NodeJsTemplateExecutor : INodeJsTemplateExecutor
                 File.Delete(tempDataFile);
                 File.Delete(modifiedTemplate);
             }
-#pragma warning disable CA1031 // Do not catch general exception types - Cleanup should not fail the operation
-            catch (Exception ex)
+            catch (IOException ex)
             {
-                _logger.LogWarning(ex, "Failed to cleanup temp files");
+                _logger.LogWarning(ex, "Failed to cleanup temp files due to IO error");
             }
-#pragma warning restore CA1031
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning(ex, "Failed to cleanup temp files due to access denied");
+            }
+
             return result;
         }
-        catch (Exception ex)
+        catch (JsonException ex)
         {
-            result.ErrorMessage = $"Template execution failed: {ex.Message}";
-            _logger.LogError(ex, "Error executing Node.js template: {Template}", templateFileName);
-            throw; // Rethrow to satisfy CA1031
+            result.ErrorMessage = $"Template execution failed: JSON serialization error - {ex.Message}";
+            _logger.LogError(ex, "JSON serialization error executing Node.js template: {Template}", templateFileName);
+            return result;
+        }
+        catch (IOException ex)
+        {
+            result.ErrorMessage = $"Template execution failed: File I/O error - {ex.Message}";
+            _logger.LogError(ex, "File I/O error executing Node.js template: {Template}", templateFileName);
+            return result;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            result.ErrorMessage = $"Template execution failed: Access denied - {ex.Message}";
+            _logger.LogError(ex, "Access denied error executing Node.js template: {Template}", templateFileName);
+            return result;
+        }
+        catch (InvalidOperationException ex)
+        {
+            result.ErrorMessage = $"Template execution failed: Invalid operation - {ex.Message}";
+            _logger.LogError(ex, "Invalid operation error executing Node.js template: {Template}", templateFileName);
+            return result;
+        }
+        catch (Win32Exception ex)
+        {
+            result.ErrorMessage = $"Template execution failed: Process error - {ex.Message}";
+            _logger.LogError(ex, "Process error executing Node.js template: {Template}", templateFileName);
+            return result;
+        }
+        catch (ArgumentException ex)
+        {
+            result.ErrorMessage = $"Template execution failed: Invalid argument - {ex.Message}";
+            _logger.LogError(ex, "Argument error executing Node.js template: {Template}", templateFileName);
+            return result;
         }
     }
 
@@ -252,12 +286,30 @@ public class NodeJsTemplateExecutor : INodeJsTemplateExecutor
 
             return true;
         }
-#pragma warning disable CA1031 // Do not catch general exception types - Validation method should not throw
-        catch (Exception ex)
+        catch (IOException ex)
         {
-            _logger.LogError(ex, "Failed to validate Node.js environment");
+            _logger.LogError(ex, "Failed to validate Node.js environment: I/O error");
             return false;
         }
-#pragma warning restore CA1031
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogError(ex, "Failed to validate Node.js environment: Access denied");
+            return false;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Failed to validate Node.js environment: Invalid operation");
+            return false;
+        }
+        catch (Win32Exception ex)
+        {
+            _logger.LogError(ex, "Failed to validate Node.js environment: Process error");
+            return false;
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogError(ex, "Failed to validate Node.js environment: Invalid argument");
+            return false;
+        }
     }
 }
