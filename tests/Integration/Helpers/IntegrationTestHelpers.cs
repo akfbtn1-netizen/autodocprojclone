@@ -127,4 +127,34 @@ public static class IntegrationTestHelpers
         public string? DisplayName { get; set; }
         public List<string>? Roles { get; set; }
     }
+
+    /// <summary>
+    /// Sets a document version to under review status.
+    /// Note: This is a helper method for testing. The actual implementation may vary
+    /// depending on your API endpoints for document workflow management.
+    /// </summary>
+    /// <param name="client">HTTP client</param>
+    /// <param name="documentId">Document ID</param>
+    /// <param name="versionNumber">Version number</param>
+    /// <returns>Task representing the async operation</returns>
+    public static async Task SetDocumentVersionUnderReviewAsync(
+        HttpClient client,
+        Guid documentId,
+        int versionNumber)
+    {
+        // This is a placeholder implementation
+        // You may need to adjust the endpoint and payload based on your actual API
+        var request = new
+        {
+            DocumentId = documentId,
+            VersionNumber = versionNumber,
+            Status = "UnderReview"
+        };
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/documents/{documentId}/versions/{versionNumber}/status",
+            request);
+
+        response.EnsureSuccessStatusCode();
+    }
 }

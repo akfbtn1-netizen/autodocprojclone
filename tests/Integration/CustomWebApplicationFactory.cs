@@ -83,19 +83,30 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         context.Documents.RemoveRange(context.Documents);
         context.SaveChanges();
 
+        // Create system user ID for creation tracking
+        var systemUserId = new UserId();
+
         // Add test users
-        var testUser = User.Create(
+        var testUser = new User(
+            id: new UserId(),
             email: "testadmin@example.com",
             displayName: "Test Admin",
-            securityClearance: SecurityClearance.Confidential,
-            roles: new List<UserRole> { UserRole.Admin, UserRole.DocumentEditor }
+            securityClearance: SecurityClearanceLevel.Confidential,
+            createdBy: systemUserId,
+            firstName: "Test",
+            lastName: "Admin",
+            roles: new List<UserRole> { UserRole.Administrator, UserRole.Manager }
         );
 
-        var testUser2 = User.Create(
+        var testUser2 = new User(
+            id: new UserId(),
             email: "testuser@example.com",
             displayName: "Test User",
-            securityClearance: SecurityClearance.Restricted,
-            roles: new List<UserRole> { UserRole.DocumentViewer }
+            securityClearance: SecurityClearanceLevel.Restricted,
+            createdBy: systemUserId,
+            firstName: "Test",
+            lastName: "User",
+            roles: new List<UserRole> { UserRole.Reader }
         );
 
         context.Users.AddRange(testUser, testUser2);
