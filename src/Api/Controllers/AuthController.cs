@@ -184,17 +184,20 @@ public class AuthController : ControllerBase
             }
 
             // Parse security clearance
-            if (!Enum.TryParse<SecurityClearance>(request.SecurityClearanceLevel, true, out var securityClearance))
+            if (!Enum.TryParse<SecurityClearanceLevel>(request.SecurityClearanceLevel, true, out var securityClearance))
             {
-                securityClearance = SecurityClearance.Restricted;
+                securityClearance = SecurityClearanceLevel.Restricted;
             }
 
             // Create new user
-            var newUser = User.Create(
-                email: request.Email,
-                displayName: $"{request.FirstName} {request.LastName}",
-                securityClearance: securityClearance,
-                roles: new List<UserRole> { UserRole.DocumentViewer }
+            var newUser = new User(
+                new UserId(Guid.NewGuid()),
+                request.Email,
+                $"{request.FirstName} {request.LastName}",
+                securityClearance,
+                new UserId(Guid.Empty), // System user for self-registration
+                request.FirstName,
+                request.LastName
             );
 
             // Note: In a real implementation, you would hash the password here
