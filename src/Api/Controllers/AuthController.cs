@@ -19,6 +19,21 @@ public class LoginRequest
     public string Password { get; set; } = string.Empty;
 }
 
+/// <summary>User registration request model</summary>
+public class RegisterRequest
+{
+    /// <summary>User email address</summary>
+    public string Email { get; set; } = string.Empty;
+    /// <summary>User password</summary>
+    public string Password { get; set; } = string.Empty;
+    /// <summary>First name</summary>
+    public string FirstName { get; set; } = string.Empty;
+    /// <summary>Last name</summary>
+    public string LastName { get; set; } = string.Empty;
+    /// <summary>Security clearance level</summary>
+    public string SecurityClearanceLevel { get; set; } = "Restricted";
+}
+
 /// <summary>Login response model</summary>
 public class LoginResponse
 {
@@ -131,6 +146,89 @@ public class AuthController : ControllerBase
             _logger.LogError(ex, "Error during login for user: {Email}", request.Email);
             return StatusCode(StatusCodes.Status500InternalServerError, 
                 new { error = "An error occurred during login" });
+        }
+    }
+
+    /// <summary>
+    /// Registers a new user
+    /// </summary>
+    /// <param name="request">Registration details</param>
+    /// <returns>User information and JWT token</returns>
+    [HttpPost("register")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+    {
+        try
+        {
+            // Validate input
+            if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
+            {
+                return BadRequest(new { error = "Email and password are required" });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))
+            {
+                return BadRequest(new { error = "First name and last name are required" });
+            }
+
+            // Check if user already exists
+            var existingUser = await _userRepository.GetByEmailAsync(request.Email);
+            if (existingUser != null)
+            {
+                _logger.LogWarning("Registration failed - user already exists: {Email}", request.Email);
+                return Conflict(new { error = "User with this email already exists" });
+            }
+
+            // Parse security clearance
+            if (!Enum.TryParse<SecurityClearance>(request.SecurityClearanceLevel, true, out var securityClearance))
+            {
+                securityClearance = SecurityClearance.Restricted;
+            }
+
+            // Create new user
+            var newUser = User.Create(
+                email: request.Email,
+                displayName: $"{request.FirstName} {request.LastName}",
+                securityClearance: securityClearance,
+                roles: new List<UserRole> { UserRole.DocumentViewer }
+            );
+
+            // Note: In a real implementation, you would hash the password here
+            // For now, we're not storing passwords for demo purposes
+
+            // Save user
+            await _userRepository.AddAsync(newUser);
+
+            // Generate JWT token
+            var token = GenerateJwtToken(newUser);
+            var refreshToken = GenerateRefreshToken();
+
+            var response = new LoginResponse
+            {
+                Token = token,
+                RefreshToken = refreshToken,
+                ExpiresAt = DateTime.UtcNow.AddHours(8),
+                User = new UserInfo
+                {
+                    Id = newUser.Id.Value,
+                    Email = newUser.Email,
+                    DisplayName = newUser.DisplayName,
+                    Roles = newUser.Roles.Select(r => r.ToString()).ToList()
+                }
+            };
+
+            _logger.LogInformation("User registered successfully: {Email}", request.Email);
+            return CreatedAtAction(nameof(GetCurrentUser), response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during registration for user: {Email}", request.Email);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { error = "An error occurred during registration" });
         }
     }
 

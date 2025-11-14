@@ -4,7 +4,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Enterprise.Documentation.Infrastructure.Data;
+using Enterprise.Documentation.Core.Infrastructure.Persistence;
+using Enterprise.Documentation.Core.Domain.Entities;
+using Enterprise.Documentation.Core.Domain.ValueObjects;
 
 namespace Tests.Integration;
 
@@ -32,7 +34,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         {
             // Remove the existing DbContext registration
             var descriptor = services.SingleOrDefault(
-                d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
+                d => d.ServiceType == typeof(DbContextOptions<DocumentationDbContext>));
 
             if (descriptor != null)
             {
@@ -40,7 +42,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             }
 
             // Add DbContext using in-memory database for testing
-            services.AddDbContext<ApplicationDbContext>(options =>
+            services.AddDbContext<DocumentationDbContext>(options =>
             {
                 options.UseInMemoryDatabase("TestDatabase");
                 options.EnableSensitiveDataLogging();
@@ -53,7 +55,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             using (var scope = sp.CreateScope())
             {
                 var scopedServices = scope.ServiceProvider;
-                var db = scopedServices.GetRequiredService<ApplicationDbContext>();
+                var db = scopedServices.GetRequiredService<DocumentationDbContext>();
                 var logger = scopedServices.GetRequiredService<ILogger<CustomWebApplicationFactory>>();
 
                 // Ensure the database is created
@@ -73,15 +75,30 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         });
     }
 
-    private static void SeedTestData(ApplicationDbContext context)
+    private static void SeedTestData(DocumentationDbContext context)
     {
-        // Add any test data seeding here
-        // For example:
-        // - Test users
-        // - Test templates
-        // - Test documents
+        // Clear existing data to ensure clean state
+        context.Users.RemoveRange(context.Users);
+        context.Templates.RemoveRange(context.Templates);
+        context.Documents.RemoveRange(context.Documents);
+        context.SaveChanges();
 
-        // This will be called once when the factory is created
-        // You can add specific test data as needed
+        // Add test users
+        var testUser = User.Create(
+            email: "testadmin@example.com",
+            displayName: "Test Admin",
+            securityClearance: SecurityClearance.Confidential,
+            roles: new List<UserRole> { UserRole.Admin, UserRole.DocumentEditor }
+        );
+
+        var testUser2 = User.Create(
+            email: "testuser@example.com",
+            displayName: "Test User",
+            securityClearance: SecurityClearance.Restricted,
+            roles: new List<UserRole> { UserRole.DocumentViewer }
+        );
+
+        context.Users.AddRange(testUser, testUser2);
+        context.SaveChanges();
     }
 }
