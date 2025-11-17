@@ -83,6 +83,9 @@ builder.Logging.AddDebug();
 // Add HTTP Context Accessor for current user service
 builder.Services.AddHttpContextAccessor();
 
+// Add Memory Cache for CurrentUserService
+builder.Services.AddMemoryCache();
+
 // Add Application Services
 builder.Services.AddScoped<ICurrentUserService, Enterprise.Documentation.Api.Services.CurrentUserService>();
 builder.Services.AddScoped<IAuthorizationService, Enterprise.Documentation.Api.Services.SimpleAuthorizationService>();
