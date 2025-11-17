@@ -1,0 +1,15 @@
+{
+  "name": "documentation-templates",
+  "version": "1.0.0",
+  "description": "Node.js templates for generating Word documentation",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["documentation", "docx", "templates"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "docx": "^8.5.0"
+  }
+}
