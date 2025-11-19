@@ -1,0 +1,55 @@
+{
+  "schema": "dbo",
+  "procedureName": "Transactions",
+  "author": "DocGenerator",
+  "ticket": "ROW001",
+  "created": "11/17/2025",
+  "type": "SystemDoc",
+  "purpose": "The dbo.Transactions stored procedure manages transaction data processing for the system.",
+  "parameters": [
+    {
+      "name": "@TransactionID",
+      "type": "int",
+      "description": "Unique identifier for the transaction"
+    },
+    {
+      "name": "@UserID",
+      "type": "int",
+      "description": "User who initiated the transaction"
+    }
+  ],
+  "returnValue": "None (void procedure)",
+  "output": "Inserts records into dbo.TransactionLog",
+  "executionLogic": [
+    "Step 1: Validate input parameters",
+    "Step 2: Begin transaction",
+    "Step 3: Insert transaction record",
+    "Step 4: Commit and log completion"
+  ],
+  "dependencies": {
+    "sourceTables": [
+      "dbo.Users - User information",
+      "dbo.Accounts - Account details"
+    ],
+    "targetTables": [
+      "dbo.TransactionLog - Transaction history"
+    ],
+    "procedures": [
+      "dbo.uspLogEvent - Event logging"
+    ]
+  },
+  "usageExamples": [
+    {
+      "title": "Example 1: Process Transaction",
+      "code": "EXEC dbo.Transactions @TransactionID = 12345, @UserID = 67890"
+    }
+  ],
+  "changeHistory": [
+    {
+      "date": "11/17/2025",
+      "author": "DocGenerator",
+      "ticket": "ROW001",
+      "description": "Initial creation for testing"
+    }
+  ]
+}
