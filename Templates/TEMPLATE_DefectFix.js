@@ -1,5 +1,5 @@
 const docx = require("docx");
-const fs = require("fs");
+const fs = require("node:fs");
 const { Document, Paragraph, TextRun, AlignmentType } = docx;
 
 /**
