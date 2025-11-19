@@ -93,7 +93,7 @@ $secretPatterns = @(
     'secret\s*=\s*"[^"]{8,}"',
     'connectionstring\s*=\s*"[^"]*password=[^"]*"',
     'Bearer\s+[A-Za-z0-9\-_]{20,}',
-    'api[_-]?key["\s:=]+["\'][^"\']{16,}',
+    "api[_-]?key[`"\s:=]+[`"'][^`"']{16,}",
     'private[_-]?key',
     'aws[_-]?access[_-]?key',
     'client[_-]?secret\s*=\s*"[^"]{8,}"'
@@ -119,7 +119,7 @@ $hasValidation = $false
 $validationPatterns = @(
     '\[Required\]',
     '\[StringLength',
-    '\[Range\(',
+    '\[Range\s*\(',
     '\[RegularExpression',
     'FluentValidation',
     'DataAnnotations',
@@ -140,7 +140,7 @@ Add-Score $(if ($hasValidation) { 5 } else { 0 }) 5 "Security" "Input Validation
 # 1.4 XSS Prevention (5 points)
 $xssPatterns = @(
     'Html\.Raw\s*\(',
-    '@Html\.Raw',
+    '\@Html\.Raw',
     'dangerouslySetInnerHTML',
     'document\.write\s*\('
 )
