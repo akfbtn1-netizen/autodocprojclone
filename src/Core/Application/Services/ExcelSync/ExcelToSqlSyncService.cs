@@ -34,8 +34,8 @@ public class ExcelToSqlSyncService : BackgroundService
             ?? throw new InvalidOperationException("ExcelSync:LocalFilePath not configured");
         _syncIntervalSeconds = configuration.GetValue<int>("ExcelSync:SyncIntervalSeconds", 60);
 
-        // Set EPPlus license context (required for EPPlus 5+)
-        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+        // Set EPPlus 8 license for noncommercial use
+        ExcelPackage.License.SetNonCommercialPersonal("Enterprise Documentation Platform");
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
