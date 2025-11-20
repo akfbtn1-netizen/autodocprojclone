@@ -43,19 +43,16 @@ public class UpdateTemplateRequest
 public class TemplatesController : ControllerBase
 {
     private readonly ITemplateRepository _templateRepository;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<TemplatesController> _logger;
 
     /// <summary>
     /// Initializes a new instance of the TemplatesController
     /// </summary>
     /// <param name="templateRepository">Template repository</param>
-    /// <param name="unitOfWork">Unit of work</param>
     /// <param name="logger">Logger instance</param>
-    public TemplatesController(ITemplateRepository templateRepository, IUnitOfWork unitOfWork, ILogger<TemplatesController> logger)
+    public TemplatesController(ITemplateRepository templateRepository, ILogger<TemplatesController> logger)
     {
         _templateRepository = templateRepository ?? throw new ArgumentNullException(nameof(templateRepository));
-        _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 

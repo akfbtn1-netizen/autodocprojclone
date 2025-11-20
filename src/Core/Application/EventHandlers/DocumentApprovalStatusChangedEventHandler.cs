@@ -15,18 +15,15 @@ namespace Enterprise.Documentation.Core.Application.EventHandlers;
 public class DocumentApprovalStatusChangedEventHandler : INotificationHandler<DocumentApprovalStatusChangedEvent>
 {
     private readonly IDocumentRepository _documentRepository;
-    private readonly IUserRepository _userRepository;
     private readonly IAuditLogRepository _auditLogRepository;
     private readonly ILogger<DocumentApprovalStatusChangedEventHandler> _logger;
 
     public DocumentApprovalStatusChangedEventHandler(
         IDocumentRepository documentRepository,
-        IUserRepository userRepository,
         IAuditLogRepository auditLogRepository,
         ILogger<DocumentApprovalStatusChangedEventHandler> logger)
     {
         _documentRepository = documentRepository;
-        _userRepository = userRepository;
         _auditLogRepository = auditLogRepository;
         _logger = logger;
     }

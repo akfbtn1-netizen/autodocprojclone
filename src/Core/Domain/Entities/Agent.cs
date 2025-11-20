@@ -440,7 +440,7 @@ public class AgentConfiguration : BaseValueObject
         RetryDelay = retryDelay ?? TimeSpan.FromSeconds(1);
     }
 
-    public static AgentConfiguration Default() => new();
+    public static AgentConfiguration Default() => new AgentConfiguration(null, null, 3, null);
 
     protected override IEnumerable<object?> GetEqualityComponents()
     {
