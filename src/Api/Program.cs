@@ -1,6 +1,7 @@
 using Enterprise.Documentation.Core.Governance;
 using Enterprise.Documentation.Core.Infrastructure.Extensions;
 using Enterprise.Documentation.Core.Application.Interfaces;
+using Enterprise.Documentation.Core.Application.Services.ExcelSync;
 using Enterprise.Documentation.Api.Services;
 using FluentValidation;
 using System.Diagnostics;
@@ -101,6 +102,9 @@ builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(
 
 // Add Infrastructure services (repositories, database)
 builder.Services.AddPersistence(builder.Configuration);
+
+// Add Excel to SQL Sync Background Service
+builder.Services.AddExcelToSqlSync();
 
 // JWT Authentication Configuration
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
