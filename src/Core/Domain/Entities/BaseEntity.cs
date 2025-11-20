@@ -153,16 +153,6 @@ public abstract class BaseEntity<TId> where TId : StronglyTypedId<TId>
     {
         return Id.GetHashCode();
     }
-
-    public static bool operator ==(BaseEntity<TId>? left, BaseEntity<TId>? right)
-    {
-        return Equals(left, right);
-    }
-
-    public static bool operator !=(BaseEntity<TId>? left, BaseEntity<TId>? right)
-    {
-        return !Equals(left, right);
-    }
 }
 
 /// <summary>

@@ -58,20 +58,17 @@ public class GetDocumentsByUserQueryHandler : IRequestHandler<GetDocumentsByUser
     private readonly IDocumentRepository _documentRepository;
     private readonly IUserRepository _userRepository;
     private readonly ICurrentUserService _currentUserService;
-    private readonly IAuthorizationService _authorizationService;
     private readonly IMapper _mapper;
 
     public GetDocumentsByUserQueryHandler(
         IDocumentRepository documentRepository,
         IUserRepository userRepository,
         ICurrentUserService currentUserService,
-        IAuthorizationService authorizationService,
         IMapper mapper)
     {
         _documentRepository = documentRepository;
         _userRepository = userRepository;
         _currentUserService = currentUserService;
-        _authorizationService = authorizationService;
         _mapper = mapper;
     }
 
