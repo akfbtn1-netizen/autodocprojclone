@@ -1,6 +1,7 @@
 using Enterprise.Documentation.Core.Governance;
 using Enterprise.Documentation.Core.Infrastructure.Extensions;
 using Enterprise.Documentation.Core.Application.Interfaces;
+using Enterprise.Documentation.Core.Application.Services.ExcelSync;
 using Enterprise.Documentation.Api.Services;
 using FluentValidation;
 using System.Diagnostics;
@@ -128,6 +129,12 @@ builder.Services.AddAuthorization();
 
 // Add Controllers
 builder.Services.AddControllers();
+
+// Add Excel-to-SQL Sync Background Service (if configured)
+if (!string.IsNullOrEmpty(builder.Configuration["ExcelSync:LocalFilePath"]))
+{
+    builder.Services.AddHostedService<ExcelToSqlSyncService>();
+}
 
 var app = builder.Build();
 
