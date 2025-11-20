@@ -7,7 +7,7 @@ namespace Enterprise.Documentation.Core.Domain.Models;
 /// Represents a change document entry from the BI Analytics Change Spreadsheet.
 /// Maps directly to Excel columns: Date, JIRA #, CAB #, Sprint #, Status, Priority,
 /// Severity, Table, Column, Change Type, Description, Reported By, Assigned to,
-/// Documentation, Documentation Link
+/// Documentation, Documentation Link, DocId
 /// </summary>
 public class DocumentChangeEntry
 {
@@ -29,6 +29,7 @@ public class DocumentChangeEntry
     public string? AssignedTo { get; set; }          // Assigned to
     public string? Documentation { get; set; }       // Documentation
     public string? DocumentationLink { get; set; }   // Documentation Link
+    public string? DocId { get; set; }               // DocId (populated after approval)
 
     // Sync Metadata
     public int ExcelRowNumber { get; set; }

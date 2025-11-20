@@ -4,7 +4,7 @@
 -- This table stores change document entries from the BI Analytics Change Spreadsheet
 -- Excel Columns: Date, JIRA #, CAB #, Sprint #, Status, Priority, Severity,
 --                Table, Column, Change Type, Description, Reported By,
---                Assigned to, Documentation, Documentation Link
+--                Assigned to, Documentation, Documentation Link, DocId
 -- Data is synced via the ExcelToSqlSyncService
 -- ============================================================================
 
@@ -38,6 +38,7 @@ BEGIN
         AssignedTo NVARCHAR(200) NULL,              -- Assigned to
         Documentation NVARCHAR(500) NULL,           -- Documentation
         DocumentationLink NVARCHAR(500) NULL,       -- Documentation Link
+        DocId NVARCHAR(50) NULL,                    -- DocId (populated after approval)
 
         -- Sync Metadata
         ExcelRowNumber INT NULL,
@@ -62,6 +63,7 @@ BEGIN
     CREATE INDEX IX_DocumentChanges_Status ON daqa.DocumentChanges(Status) WHERE Status IS NOT NULL
     CREATE INDEX IX_DocumentChanges_TableName ON daqa.DocumentChanges(TableName) WHERE TableName IS NOT NULL
     CREATE INDEX IX_DocumentChanges_Date ON daqa.DocumentChanges(Date) WHERE Date IS NOT NULL
+    CREATE INDEX IX_DocumentChanges_DocId ON daqa.DocumentChanges(DocId) WHERE DocId IS NOT NULL
     CREATE INDEX IX_DocumentChanges_CAB_Table_Column ON daqa.DocumentChanges(CABNumber, TableName, ColumnName)
 
     PRINT 'Created daqa.DocumentChanges table with indexes'

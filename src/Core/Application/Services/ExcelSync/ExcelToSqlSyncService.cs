@@ -193,7 +193,10 @@ public class ExcelToSqlSyncService : BackgroundService
             try
             {
                 var entry = MapRowToEntry(worksheet, row, columnMap);
-                if (entry != null && !string.IsNullOrEmpty(entry.DocumentId))
+                // Entry is valid if it has at least a CAB# or JIRA# or Table
+                if (entry != null && (!string.IsNullOrEmpty(entry.CABNumber) ||
+                    !string.IsNullOrEmpty(entry.JiraNumber) ||
+                    !string.IsNullOrEmpty(entry.TableName)))
                 {
                     entry.ExcelRowNumber = row;
                     entry.LastSyncedFromExcel = DateTime.UtcNow;
@@ -259,7 +262,8 @@ public class ExcelToSqlSyncService : BackgroundService
             ReportedBy = GetValue("Reported By"),
             AssignedTo = GetValue("Assigned to"),
             Documentation = GetValue("Documentation"),
-            DocumentationLink = GetValue("Documentation Link")
+            DocumentationLink = GetValue("Documentation Link"),
+            DocId = GetValue("DocId")  // Populated after document is approved
         };
 
         return entry;
@@ -330,7 +334,7 @@ public class ExcelToSqlSyncService : BackgroundService
             catch (Exception ex)
             {
                 errors++;
-                _logger.LogError(ex, "Error upserting entry {DocumentId}", entry.DocumentId);
+                _logger.LogError(ex, "Error upserting entry CAB={CAB}, Row={Row}", entry.CABNumber, entry.ExcelRowNumber);
             }
         }
 
@@ -342,12 +346,12 @@ public class ExcelToSqlSyncService : BackgroundService
         INSERT INTO daqa.DocumentChanges (
             Date, JiraNumber, CABNumber, SprintNumber, Status, Priority, Severity,
             TableName, ColumnName, ChangeType, Description, ReportedBy, AssignedTo,
-            Documentation, DocumentationLink, ExcelRowNumber, LastSyncedFromExcel,
+            Documentation, DocumentationLink, DocId, ExcelRowNumber, LastSyncedFromExcel,
             SyncStatus, UniqueKey, ContentHash
         ) VALUES (
             @Date, @JiraNumber, @CABNumber, @SprintNumber, @Status, @Priority, @Severity,
             @TableName, @ColumnName, @ChangeType, @Description, @ReportedBy, @AssignedTo,
-            @Documentation, @DocumentationLink, @ExcelRowNumber, @LastSyncedFromExcel,
+            @Documentation, @DocumentationLink, @DocId, @ExcelRowNumber, @LastSyncedFromExcel,
             @SyncStatus, @UniqueKey, @ContentHash
         )";
 
@@ -358,7 +362,7 @@ public class ExcelToSqlSyncService : BackgroundService
             TableName = @TableName, ColumnName = @ColumnName, ChangeType = @ChangeType,
             Description = @Description, ReportedBy = @ReportedBy, AssignedTo = @AssignedTo,
             Documentation = @Documentation, DocumentationLink = @DocumentationLink,
-            ExcelRowNumber = @ExcelRowNumber, LastSyncedFromExcel = @LastSyncedFromExcel,
+            DocId = @DocId, ExcelRowNumber = @ExcelRowNumber, LastSyncedFromExcel = @LastSyncedFromExcel,
             SyncStatus = @SyncStatus, UniqueKey = @UniqueKey, ContentHash = @ContentHash,
             UpdatedAt = GETUTCDATE()
         WHERE Id = @Id";
