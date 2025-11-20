@@ -1,9 +1,11 @@
 -- ============================================================================
 -- DocumentChanges Table for Excel-to-SQL Sync
 -- ============================================================================
--- This table stores change document entries from the Excel tracking spreadsheet
+-- This table stores change document entries from the BI Analytics Change Spreadsheet
+-- Excel Columns: Date, JIRA #, CAB #, Sprint #, Status, Priority, Severity,
+--                Table, Column, Change Type, Description, Reported By,
+--                Assigned to, Documentation, Documentation Link
 -- Data is synced via the ExcelToSqlSyncService
--- Supports both local Excel files and SharePoint
 -- ============================================================================
 
 -- Create schema if not exists
@@ -20,64 +22,22 @@ BEGIN
         -- Primary Key
         Id INT IDENTITY(1,1) PRIMARY KEY,
 
-        -- Core Identifiers
-        DocumentId NVARCHAR(50) NOT NULL,
-        CABNumber NVARCHAR(50) NULL,
-        ChangeRequestId NVARCHAR(50) NULL,
-
-        -- Document Information
-        Title NVARCHAR(500) NULL,
-        Description NVARCHAR(MAX) NULL,
-        DocumentType NVARCHAR(100) NULL,
-        Category NVARCHAR(100) NULL,
-        SubCategory NVARCHAR(100) NULL,
-
-        -- Classification
-        TierClassification NVARCHAR(50) NULL,
-        DataClassification NVARCHAR(50) NULL,
-        SecurityClearance NVARCHAR(50) NULL,
-
-        -- Ownership & Responsibility
-        BusinessOwner NVARCHAR(200) NULL,
-        TechnicalOwner NVARCHAR(200) NULL,
-        Author NVARCHAR(200) NULL,
-        Department NVARCHAR(100) NULL,
-        Team NVARCHAR(100) NULL,
-
-        -- Approval Workflow
-        ApprovalStatus NVARCHAR(50) NULL,
-        CurrentApprover NVARCHAR(200) NULL,
-        SubmittedDate DATETIME2 NULL,
-        ApprovedDate DATETIME2 NULL,
-        ApprovalComments NVARCHAR(MAX) NULL,
-
-        -- Dates & Versioning
-        CreatedDate DATETIME2 NULL,
-        ModifiedDate DATETIME2 NULL,
-        EffectiveDate DATETIME2 NULL,
-        ExpirationDate DATETIME2 NULL,
-        Version NVARCHAR(50) NULL,
-        RevisionNumber INT NULL,
-
-        -- Database Objects
-        DatabaseName NVARCHAR(128) NULL,
-        SchemaName NVARCHAR(128) NULL,
-        ObjectName NVARCHAR(128) NULL,
-        ObjectType NVARCHAR(50) NULL,
-        SourceTables NVARCHAR(MAX) NULL,
-        TargetTables NVARCHAR(MAX) NULL,
-
-        -- File References
-        FilePath NVARCHAR(500) NULL,
-        GeneratedDocPath NVARCHAR(500) NULL,
-        TemplateUsed NVARCHAR(200) NULL,
-
-        -- Status & Tracking
-        Status NVARCHAR(50) NULL,
-        IsActive BIT NOT NULL DEFAULT 1,
-        IsDeleted BIT NOT NULL DEFAULT 0,
-        Tags NVARCHAR(500) NULL,
-        Notes NVARCHAR(MAX) NULL,
+        -- Excel Column Mapping (Direct 1:1 with spreadsheet)
+        Date DATETIME2 NULL,                        -- Date
+        JiraNumber NVARCHAR(50) NULL,               -- JIRA #
+        CABNumber NVARCHAR(50) NULL,                -- CAB #
+        SprintNumber NVARCHAR(50) NULL,             -- Sprint #
+        Status NVARCHAR(50) NULL,                   -- Status
+        Priority NVARCHAR(50) NULL,                 -- Priority
+        Severity NVARCHAR(50) NULL,                 -- Severity
+        TableName NVARCHAR(128) NULL,               -- Table
+        ColumnName NVARCHAR(128) NULL,              -- Column
+        ChangeType NVARCHAR(100) NULL,              -- Change Type
+        Description NVARCHAR(MAX) NULL,             -- Description
+        ReportedBy NVARCHAR(200) NULL,              -- Reported By
+        AssignedTo NVARCHAR(200) NULL,              -- Assigned to
+        Documentation NVARCHAR(500) NULL,           -- Documentation
+        DocumentationLink NVARCHAR(500) NULL,       -- Documentation Link
 
         -- Sync Metadata
         ExcelRowNumber INT NULL,
@@ -86,24 +46,23 @@ BEGIN
         SyncErrors NVARCHAR(MAX) NULL,
 
         -- Deduplication
-        UniqueKey NVARCHAR(500) NULL,   -- CABNumber|ObjectName|Version
-        ContentHash NVARCHAR(64) NULL,   -- SHA256 hash of key fields
+        UniqueKey NVARCHAR(500) NULL,               -- CABNumber|TableName|ColumnName
+        ContentHash NVARCHAR(64) NULL,              -- SHA256 hash for change detection
 
         -- Audit
         CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
         UpdatedAt DATETIME2 NULL
     )
 
-    -- Create indexes
-    CREATE UNIQUE INDEX IX_DocumentChanges_DocumentId ON daqa.DocumentChanges(DocumentId)
+    -- Create indexes for common queries
     CREATE INDEX IX_DocumentChanges_UniqueKey ON daqa.DocumentChanges(UniqueKey) WHERE UniqueKey IS NOT NULL
     CREATE INDEX IX_DocumentChanges_ContentHash ON daqa.DocumentChanges(ContentHash) WHERE ContentHash IS NOT NULL
     CREATE INDEX IX_DocumentChanges_CABNumber ON daqa.DocumentChanges(CABNumber) WHERE CABNumber IS NOT NULL
+    CREATE INDEX IX_DocumentChanges_JiraNumber ON daqa.DocumentChanges(JiraNumber) WHERE JiraNumber IS NOT NULL
     CREATE INDEX IX_DocumentChanges_Status ON daqa.DocumentChanges(Status) WHERE Status IS NOT NULL
-    CREATE INDEX IX_DocumentChanges_ApprovalStatus ON daqa.DocumentChanges(ApprovalStatus) WHERE ApprovalStatus IS NOT NULL
-    CREATE INDEX IX_DocumentChanges_BusinessOwner ON daqa.DocumentChanges(BusinessOwner) WHERE BusinessOwner IS NOT NULL
-    CREATE INDEX IX_DocumentChanges_DocumentType ON daqa.DocumentChanges(DocumentType) WHERE DocumentType IS NOT NULL
-    CREATE INDEX IX_DocumentChanges_CAB_Object_Version ON daqa.DocumentChanges(CABNumber, ObjectName, Version)
+    CREATE INDEX IX_DocumentChanges_TableName ON daqa.DocumentChanges(TableName) WHERE TableName IS NOT NULL
+    CREATE INDEX IX_DocumentChanges_Date ON daqa.DocumentChanges(Date) WHERE Date IS NOT NULL
+    CREATE INDEX IX_DocumentChanges_CAB_Table_Column ON daqa.DocumentChanges(CABNumber, TableName, ColumnName)
 
     PRINT 'Created daqa.DocumentChanges table with indexes'
 END
@@ -140,15 +99,21 @@ BEGIN
     CREATE VIEW daqa.vw_RecentDocumentChanges AS
     SELECT
         Id,
-        DocumentId,
+        Date,
+        JiraNumber,
         CABNumber,
-        Title,
-        DocumentType,
-        ApprovalStatus,
-        BusinessOwner,
+        SprintNumber,
+        Status,
+        Priority,
+        Severity,
+        TableName,
+        ColumnName,
+        ChangeType,
+        Description,
+        ReportedBy,
+        AssignedTo,
         LastSyncedFromExcel,
-        SyncStatus,
-        UniqueKey
+        SyncStatus
     FROM daqa.DocumentChanges
     WHERE LastSyncedFromExcel >= DATEADD(DAY, -7, GETUTCDATE())
     ')
@@ -163,15 +128,33 @@ BEGIN
     CREATE VIEW daqa.vw_PotentialDuplicates AS
     SELECT
         CABNumber,
-        ObjectName,
+        TableName,
+        ColumnName,
         COUNT(*) AS DuplicateCount,
-        STRING_AGG(DocumentId, '', '') AS DocumentIds
+        STRING_AGG(CAST(Id AS NVARCHAR(10)), '','') AS DocumentIds
     FROM daqa.DocumentChanges
-    WHERE CABNumber IS NOT NULL AND ObjectName IS NOT NULL
-    GROUP BY CABNumber, ObjectName
+    WHERE CABNumber IS NOT NULL AND TableName IS NOT NULL
+    GROUP BY CABNumber, TableName, ColumnName
     HAVING COUNT(*) > 1
     ')
     PRINT 'Created vw_PotentialDuplicates view'
+END
+GO
+
+-- View for sync status summary
+IF NOT EXISTS (SELECT * FROM sys.views WHERE name = 'vw_SyncStatusSummary' AND schema_id = SCHEMA_ID('daqa'))
+BEGIN
+    EXEC('
+    CREATE VIEW daqa.vw_SyncStatusSummary AS
+    SELECT
+        SyncStatus,
+        COUNT(*) AS EntryCount,
+        MIN(LastSyncedFromExcel) AS OldestSync,
+        MAX(LastSyncedFromExcel) AS LatestSync
+    FROM daqa.DocumentChanges
+    GROUP BY SyncStatus
+    ')
+    PRINT 'Created vw_SyncStatusSummary view'
 END
 GO
 

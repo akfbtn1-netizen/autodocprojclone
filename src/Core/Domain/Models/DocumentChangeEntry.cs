@@ -1,73 +1,34 @@
 using System;
+using System.Linq;
 
 namespace Enterprise.Documentation.Core.Domain.Models;
 
 /// <summary>
-/// Represents a change document entry from the Excel tracking spreadsheet.
-/// This tracks all change documentation for stored procedures, tables, etc.
+/// Represents a change document entry from the BI Analytics Change Spreadsheet.
+/// Maps directly to Excel columns: Date, JIRA #, CAB #, Sprint #, Status, Priority,
+/// Severity, Table, Column, Change Type, Description, Reported By, Assigned to,
+/// Documentation, Documentation Link
 /// </summary>
 public class DocumentChangeEntry
 {
     public int Id { get; set; }
 
-    // Core Identifiers
-    public string? DocumentId { get; set; }
-    public string? CABNumber { get; set; }
-    public string? ChangeRequestId { get; set; }
-
-    // Document Information
-    public string? Title { get; set; }
-    public string? Description { get; set; }
-    public string? DocumentType { get; set; }
-    public string? Category { get; set; }
-    public string? SubCategory { get; set; }
-
-    // Classification
-    public string? TierClassification { get; set; }  // Tier1, Tier2, Tier3
-    public string? DataClassification { get; set; }  // Public, Internal, Confidential, Restricted
-    public string? SecurityClearance { get; set; }
-
-    // Ownership & Responsibility
-    public string? BusinessOwner { get; set; }
-    public string? TechnicalOwner { get; set; }
-    public string? Author { get; set; }
-    public string? Department { get; set; }
-    public string? Team { get; set; }
-
-    // Approval Workflow
-    public string? ApprovalStatus { get; set; }
-    public string? CurrentApprover { get; set; }
-    public DateTime? SubmittedDate { get; set; }
-    public DateTime? ApprovedDate { get; set; }
-    public string? ApprovalComments { get; set; }
-
-    // Dates & Versioning
-    public DateTime? CreatedDate { get; set; }
-    public DateTime? ModifiedDate { get; set; }
-    public DateTime? EffectiveDate { get; set; }
-    public DateTime? ExpirationDate { get; set; }
-    public string? Version { get; set; }
-    public int? RevisionNumber { get; set; }
-
-    // Database Objects (for stored procedures/tables)
-    public string? DatabaseName { get; set; }
-    public string? SchemaName { get; set; }
-    public string? ObjectName { get; set; }
-    public string? ObjectType { get; set; }
-    public string? SourceTables { get; set; }
-    public string? TargetTables { get; set; }
-
-    // File References
-    public string? FilePath { get; set; }
-    public string? GeneratedDocPath { get; set; }
-    public string? TemplateUsed { get; set; }
-
-    // Status & Tracking
-    public string? Status { get; set; }  // Draft, InReview, Approved, Published, Archived
-    public bool IsActive { get; set; } = true;
-    public bool IsDeleted { get; set; } = false;
-    public string? Tags { get; set; }
-    public string? Notes { get; set; }
+    // Excel Columns - Direct Mapping
+    public DateTime? Date { get; set; }              // Date
+    public string? JiraNumber { get; set; }          // JIRA #
+    public string? CABNumber { get; set; }           // CAB #
+    public string? SprintNumber { get; set; }        // Sprint #
+    public string? Status { get; set; }              // Status
+    public string? Priority { get; set; }            // Priority
+    public string? Severity { get; set; }            // Severity
+    public string? TableName { get; set; }           // Table
+    public string? ColumnName { get; set; }          // Column
+    public string? ChangeType { get; set; }          // Change Type
+    public string? Description { get; set; }         // Description
+    public string? ReportedBy { get; set; }          // Reported By
+    public string? AssignedTo { get; set; }          // Assigned to
+    public string? Documentation { get; set; }       // Documentation
+    public string? DocumentationLink { get; set; }   // Documentation Link
 
     // Sync Metadata
     public int ExcelRowNumber { get; set; }
@@ -77,25 +38,29 @@ public class DocumentChangeEntry
 
     // Deduplication
     public string? ContentHash { get; set; }  // SHA256 of key fields to detect duplicates
-    public string? UniqueKey { get; set; }    // CABNumber + ObjectName + Version
+    public string? UniqueKey { get; set; }    // CABNumber + TableName + ColumnName
+
+    // Audit
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; }
 
     /// <summary>
-    /// Generates a unique key for deduplication based on CAB number, object name, and version.
+    /// Generates a unique key for deduplication based on CAB #, Table, and Column.
     /// </summary>
     public string GenerateUniqueKey()
     {
-        var parts = new[] { CABNumber, ObjectName, Version }
+        var parts = new[] { CABNumber, TableName, ColumnName }
             .Where(p => !string.IsNullOrEmpty(p))
             .Select(p => p!.Trim().ToUpperInvariant());
         return string.Join("|", parts);
     }
 
     /// <summary>
-    /// Generates a content hash for detecting similar documents.
+    /// Generates a content hash for detecting similar/duplicate documents.
     /// </summary>
     public string GenerateContentHash()
     {
-        var content = $"{CABNumber}|{Title}|{ObjectName}|{DatabaseName}|{SchemaName}";
+        var content = $"{CABNumber}|{JiraNumber}|{TableName}|{ColumnName}|{ChangeType}|{Description}";
         using var sha256 = System.Security.Cryptography.SHA256.Create();
         var bytes = System.Text.Encoding.UTF8.GetBytes(content);
         var hash = sha256.ComputeHash(bytes);

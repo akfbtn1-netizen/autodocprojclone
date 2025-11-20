@@ -244,63 +244,22 @@ public class ExcelToSqlSyncService : BackgroundService
 
         var entry = new DocumentChangeEntry
         {
-            // Core Identifiers
-            DocumentId = GetValue("DocumentId") ?? GetValue("Document ID") ?? GetValue("DocID"),
-            CABNumber = GetValue("CABNumber") ?? GetValue("CAB Number") ?? GetValue("CAB"),
-            ChangeRequestId = GetValue("ChangeRequestId") ?? GetValue("CR") ?? GetValue("Change Request"),
-
-            // Document Information
-            Title = GetValue("Title") ?? GetValue("Document Title"),
-            Description = GetValue("Description") ?? GetValue("Summary"),
-            DocumentType = GetValue("DocumentType") ?? GetValue("Type") ?? GetValue("Doc Type"),
-            Category = GetValue("Category"),
-            SubCategory = GetValue("SubCategory") ?? GetValue("Sub Category"),
-
-            // Classification
-            TierClassification = GetValue("Tier") ?? GetValue("TierClassification"),
-            DataClassification = GetValue("DataClassification") ?? GetValue("Classification"),
-            SecurityClearance = GetValue("SecurityClearance") ?? GetValue("Clearance"),
-
-            // Ownership
-            BusinessOwner = GetValue("BusinessOwner") ?? GetValue("Business Owner"),
-            TechnicalOwner = GetValue("TechnicalOwner") ?? GetValue("Technical Owner"),
-            Author = GetValue("Author") ?? GetValue("Created By"),
-            Department = GetValue("Department") ?? GetValue("Dept"),
-            Team = GetValue("Team"),
-
-            // Approval
-            ApprovalStatus = GetValue("ApprovalStatus") ?? GetValue("Approval Status"),
-            CurrentApprover = GetValue("CurrentApprover") ?? GetValue("Approver"),
-            SubmittedDate = GetDate("SubmittedDate") ?? GetDate("Submitted"),
-            ApprovedDate = GetDate("ApprovedDate") ?? GetDate("Approved"),
-            ApprovalComments = GetValue("ApprovalComments") ?? GetValue("Comments"),
-
-            // Dates
-            CreatedDate = GetDate("CreatedDate") ?? GetDate("Created"),
-            ModifiedDate = GetDate("ModifiedDate") ?? GetDate("Modified") ?? GetDate("Last Modified"),
-            EffectiveDate = GetDate("EffectiveDate") ?? GetDate("Effective"),
-            ExpirationDate = GetDate("ExpirationDate") ?? GetDate("Expires"),
-            Version = GetValue("Version"),
-            RevisionNumber = GetInt("RevisionNumber") ?? GetInt("Revision"),
-
-            // Database Objects
-            DatabaseName = GetValue("DatabaseName") ?? GetValue("Database"),
-            SchemaName = GetValue("SchemaName") ?? GetValue("Schema"),
-            ObjectName = GetValue("ObjectName") ?? GetValue("Object Name") ?? GetValue("SP Name"),
-            ObjectType = GetValue("ObjectType") ?? GetValue("Object Type"),
-            SourceTables = GetValue("SourceTables") ?? GetValue("Source Tables"),
-            TargetTables = GetValue("TargetTables") ?? GetValue("Target Tables"),
-
-            // Files
-            FilePath = GetValue("FilePath") ?? GetValue("File Path") ?? GetValue("Path"),
-            GeneratedDocPath = GetValue("GeneratedDocPath") ?? GetValue("Generated Doc"),
-            TemplateUsed = GetValue("TemplateUsed") ?? GetValue("Template"),
-
-            // Status
+            // Direct Excel Column Mapping
+            Date = GetDate("Date"),
+            JiraNumber = GetValue("JIRA #"),
+            CABNumber = GetValue("CAB #"),
+            SprintNumber = GetValue("Sprint #"),
             Status = GetValue("Status"),
-            IsActive = GetValue("IsActive")?.ToLower() != "false" && GetValue("Active")?.ToLower() != "false",
-            Tags = GetValue("Tags"),
-            Notes = GetValue("Notes") ?? GetValue("Remarks")
+            Priority = GetValue("Priority"),
+            Severity = GetValue("Severity"),
+            TableName = GetValue("Table"),
+            ColumnName = GetValue("Column"),
+            ChangeType = GetValue("Change Type"),
+            Description = GetValue("Description"),
+            ReportedBy = GetValue("Reported By"),
+            AssignedTo = GetValue("Assigned to"),
+            Documentation = GetValue("Documentation"),
+            DocumentationLink = GetValue("Documentation Link")
         };
 
         return entry;
@@ -323,12 +282,11 @@ public class ExcelToSqlSyncService : BackgroundService
                 entry.UniqueKey = entry.GenerateUniqueKey();
                 entry.ContentHash = entry.GenerateContentHash();
 
-                // Check for duplicates by multiple criteria
+                // Check for duplicates by UniqueKey (CAB + Table + Column)
                 var existing = await connection.QueryFirstOrDefaultAsync<(int Id, string? ContentHash)?>(
                     @"SELECT Id, ContentHash FROM daqa.DocumentChanges
-                      WHERE DocumentId = @DocumentId
-                         OR UniqueKey = @UniqueKey",
-                    new { entry.DocumentId, entry.UniqueKey });
+                      WHERE UniqueKey = @UniqueKey",
+                    new { entry.UniqueKey });
 
                 if (existing.HasValue)
                 {
@@ -347,19 +305,19 @@ public class ExcelToSqlSyncService : BackgroundService
                 }
                 else
                 {
-                    // Check for similar documents (same CAB + Object but different version)
+                    // Check for similar documents (same CAB + Table + Column)
                     var similar = await connection.QueryFirstOrDefaultAsync<int?>(
                         @"SELECT Id FROM daqa.DocumentChanges
                           WHERE CABNumber = @CABNumber
-                            AND ObjectName = @ObjectName
-                            AND Version = @Version",
-                        new { entry.CABNumber, entry.ObjectName, entry.Version });
+                            AND TableName = @TableName
+                            AND ColumnName = @ColumnName",
+                        new { entry.CABNumber, entry.TableName, entry.ColumnName });
 
                     if (similar.HasValue)
                     {
                         _logger.LogWarning(
-                            "Skipping duplicate entry: CAB={CAB}, Object={Object}, Version={Version}",
-                            entry.CABNumber, entry.ObjectName, entry.Version);
+                            "Skipping duplicate entry: CAB={CAB}, Table={Table}, Column={Column}",
+                            entry.CABNumber, entry.TableName, entry.ColumnName);
                         skipped++;
                         continue;
                     }
@@ -382,43 +340,27 @@ public class ExcelToSqlSyncService : BackgroundService
 
     private static string GetInsertSql() => @"
         INSERT INTO daqa.DocumentChanges (
-            DocumentId, CABNumber, ChangeRequestId, Title, Description, DocumentType,
-            Category, SubCategory, TierClassification, DataClassification, SecurityClearance,
-            BusinessOwner, TechnicalOwner, Author, Department, Team,
-            ApprovalStatus, CurrentApprover, SubmittedDate, ApprovedDate, ApprovalComments,
-            CreatedDate, ModifiedDate, EffectiveDate, ExpirationDate, Version, RevisionNumber,
-            DatabaseName, SchemaName, ObjectName, ObjectType, SourceTables, TargetTables,
-            FilePath, GeneratedDocPath, TemplateUsed, Status, IsActive, IsDeleted, Tags, Notes,
-            ExcelRowNumber, LastSyncedFromExcel, SyncStatus, UniqueKey, ContentHash
+            Date, JiraNumber, CABNumber, SprintNumber, Status, Priority, Severity,
+            TableName, ColumnName, ChangeType, Description, ReportedBy, AssignedTo,
+            Documentation, DocumentationLink, ExcelRowNumber, LastSyncedFromExcel,
+            SyncStatus, UniqueKey, ContentHash
         ) VALUES (
-            @DocumentId, @CABNumber, @ChangeRequestId, @Title, @Description, @DocumentType,
-            @Category, @SubCategory, @TierClassification, @DataClassification, @SecurityClearance,
-            @BusinessOwner, @TechnicalOwner, @Author, @Department, @Team,
-            @ApprovalStatus, @CurrentApprover, @SubmittedDate, @ApprovedDate, @ApprovalComments,
-            @CreatedDate, @ModifiedDate, @EffectiveDate, @ExpirationDate, @Version, @RevisionNumber,
-            @DatabaseName, @SchemaName, @ObjectName, @ObjectType, @SourceTables, @TargetTables,
-            @FilePath, @GeneratedDocPath, @TemplateUsed, @Status, @IsActive, @IsDeleted, @Tags, @Notes,
-            @ExcelRowNumber, @LastSyncedFromExcel, @SyncStatus, @UniqueKey, @ContentHash
+            @Date, @JiraNumber, @CABNumber, @SprintNumber, @Status, @Priority, @Severity,
+            @TableName, @ColumnName, @ChangeType, @Description, @ReportedBy, @AssignedTo,
+            @Documentation, @DocumentationLink, @ExcelRowNumber, @LastSyncedFromExcel,
+            @SyncStatus, @UniqueKey, @ContentHash
         )";
 
     private static string GetUpdateSql() => @"
         UPDATE daqa.DocumentChanges SET
-            CABNumber = @CABNumber, ChangeRequestId = @ChangeRequestId, Title = @Title,
-            Description = @Description, DocumentType = @DocumentType, Category = @Category,
-            SubCategory = @SubCategory, TierClassification = @TierClassification,
-            DataClassification = @DataClassification, SecurityClearance = @SecurityClearance,
-            BusinessOwner = @BusinessOwner, TechnicalOwner = @TechnicalOwner, Author = @Author,
-            Department = @Department, Team = @Team, ApprovalStatus = @ApprovalStatus,
-            CurrentApprover = @CurrentApprover, SubmittedDate = @SubmittedDate,
-            ApprovedDate = @ApprovedDate, ApprovalComments = @ApprovalComments,
-            ModifiedDate = @ModifiedDate, EffectiveDate = @EffectiveDate,
-            ExpirationDate = @ExpirationDate, Version = @Version, RevisionNumber = @RevisionNumber,
-            DatabaseName = @DatabaseName, SchemaName = @SchemaName, ObjectName = @ObjectName,
-            ObjectType = @ObjectType, SourceTables = @SourceTables, TargetTables = @TargetTables,
-            FilePath = @FilePath, GeneratedDocPath = @GeneratedDocPath, TemplateUsed = @TemplateUsed,
-            Status = @Status, IsActive = @IsActive, Tags = @Tags, Notes = @Notes,
+            Date = @Date, JiraNumber = @JiraNumber, SprintNumber = @SprintNumber,
+            Status = @Status, Priority = @Priority, Severity = @Severity,
+            TableName = @TableName, ColumnName = @ColumnName, ChangeType = @ChangeType,
+            Description = @Description, ReportedBy = @ReportedBy, AssignedTo = @AssignedTo,
+            Documentation = @Documentation, DocumentationLink = @DocumentationLink,
             ExcelRowNumber = @ExcelRowNumber, LastSyncedFromExcel = @LastSyncedFromExcel,
-            SyncStatus = @SyncStatus, UniqueKey = @UniqueKey, ContentHash = @ContentHash
+            SyncStatus = @SyncStatus, UniqueKey = @UniqueKey, ContentHash = @ContentHash,
+            UpdatedAt = GETUTCDATE()
         WHERE Id = @Id";
 
     public override void Dispose()
