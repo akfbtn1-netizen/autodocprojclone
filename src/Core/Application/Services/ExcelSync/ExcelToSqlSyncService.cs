@@ -142,26 +142,29 @@ public class ExcelToSqlSyncService : BackgroundService
             return entries;
         }
 
-        // Build column index map from header row
+        // Build column index map from header row (row 2, since row 1 is typically a title)
         var columnMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        int headerRow = 2;
         for (int col = 1; col <= worksheet.Dimension.End.Column; col++)
         {
-            var header = worksheet.Cells[1, col].Text?.Trim();
+            var header = worksheet.Cells[headerRow, col].Text?.Trim();
             if (!string.IsNullOrEmpty(header))
             {
                 columnMap[header] = col;
             }
         }
 
-        _logger.LogInformation("Found {ColumnCount} columns: {Columns}",
-            columnMap.Count, string.Join(", ", columnMap.Keys));
+        _logger.LogInformation("Found {ColumnCount} columns in row {HeaderRow}: {Columns}",
+            columnMap.Count, headerRow, string.Join(", ", columnMap.Keys));
 
-        // Read data rows
-        int totalRows = worksheet.Dimension.End.Row - 1; // Minus header row
+        // Read data rows (starting from row 3, since row 1 is title and row 2 is headers)
+        int dataStartRow = 3;
+        int totalRows = worksheet.Dimension.End.Row - dataStartRow + 1;
         int skippedRows = 0;
-        _logger.LogInformation("Processing {TotalRows} data rows (rows 2-{EndRow})", totalRows, worksheet.Dimension.End.Row);
+        _logger.LogInformation("Processing {TotalRows} data rows (rows {StartRow}-{EndRow})",
+            totalRows, dataStartRow, worksheet.Dimension.End.Row);
 
-        for (int row = 2; row <= worksheet.Dimension.End.Row; row++)
+        for (int row = dataStartRow; row <= worksheet.Dimension.End.Row; row++)
         {
             if (cancellationToken.IsCancellationRequested) break;
 
