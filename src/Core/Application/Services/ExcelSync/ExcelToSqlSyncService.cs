@@ -142,9 +142,9 @@ public class ExcelToSqlSyncService : BackgroundService
             return entries;
         }
 
-        // Build column index map from header row (row 2, since row 1 is typically a title)
+        // Build column index map from header row (row 3, since rows 1-2 are title/subtitle)
         var columnMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        int headerRow = 2;
+        int headerRow = 3;
         for (int col = 1; col <= worksheet.Dimension.End.Column; col++)
         {
             var header = worksheet.Cells[headerRow, col].Text?.Trim();
@@ -157,8 +157,8 @@ public class ExcelToSqlSyncService : BackgroundService
         _logger.LogInformation("Found {ColumnCount} columns in row {HeaderRow}: {Columns}",
             columnMap.Count, headerRow, string.Join(", ", columnMap.Keys));
 
-        // Read data rows (starting from row 3, since row 1 is title and row 2 is headers)
-        int dataStartRow = 3;
+        // Read data rows (starting from row 4, since rows 1-3 are title/subtitle/headers)
+        int dataStartRow = 4;
         int totalRows = worksheet.Dimension.End.Row - dataStartRow + 1;
         int skippedRows = 0;
         _logger.LogInformation("Processing {TotalRows} data rows (rows {StartRow}-{EndRow})",
