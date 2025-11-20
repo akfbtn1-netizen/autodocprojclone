@@ -3,10 +3,10 @@ using System;
 namespace Enterprise.Documentation.Core.Domain.Models;
 
 /// <summary>
-/// Represents a row from the MasterIndex Excel spreadsheet.
-/// This is the central tracking document for all change documentation.
+/// Represents a change document entry from the Excel tracking spreadsheet.
+/// This tracks all change documentation for stored procedures, tables, etc.
 /// </summary>
-public class MasterIndexEntry
+public class DocumentChangeEntry
 {
     public int Id { get; set; }
 
@@ -74,4 +74,31 @@ public class MasterIndexEntry
     public DateTime LastSyncedFromExcel { get; set; }
     public string? SyncStatus { get; set; }
     public string? SyncErrors { get; set; }
+
+    // Deduplication
+    public string? ContentHash { get; set; }  // SHA256 of key fields to detect duplicates
+    public string? UniqueKey { get; set; }    // CABNumber + ObjectName + Version
+
+    /// <summary>
+    /// Generates a unique key for deduplication based on CAB number, object name, and version.
+    /// </summary>
+    public string GenerateUniqueKey()
+    {
+        var parts = new[] { CABNumber, ObjectName, Version }
+            .Where(p => !string.IsNullOrEmpty(p))
+            .Select(p => p!.Trim().ToUpperInvariant());
+        return string.Join("|", parts);
+    }
+
+    /// <summary>
+    /// Generates a content hash for detecting similar documents.
+    /// </summary>
+    public string GenerateContentHash()
+    {
+        var content = $"{CABNumber}|{Title}|{ObjectName}|{DatabaseName}|{SchemaName}";
+        using var sha256 = System.Security.Cryptography.SHA256.Create();
+        var bytes = System.Text.Encoding.UTF8.GetBytes(content);
+        var hash = sha256.ComputeHash(bytes);
+        return Convert.ToHexString(hash);
+    }
 }

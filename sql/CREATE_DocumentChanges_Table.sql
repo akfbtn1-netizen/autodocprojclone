@@ -1,8 +1,9 @@
 -- ============================================================================
--- MasterIndex Table for Excel-to-SQL Sync
+-- DocumentChanges Table for Excel-to-SQL Sync
 -- ============================================================================
--- This table mirrors the Excel MasterIndex spreadsheet
+-- This table stores change document entries from the Excel tracking spreadsheet
 -- Data is synced via the ExcelToSqlSyncService
+-- Supports both local Excel files and SharePoint
 -- ============================================================================
 
 -- Create schema if not exists
@@ -12,10 +13,10 @@ BEGIN
 END
 GO
 
--- Create MasterIndex table
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'MasterIndex' AND schema_id = SCHEMA_ID('daqa'))
+-- Create DocumentChanges table
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'DocumentChanges' AND schema_id = SCHEMA_ID('daqa'))
 BEGIN
-    CREATE TABLE daqa.MasterIndex (
+    CREATE TABLE daqa.DocumentChanges (
         -- Primary Key
         Id INT IDENTITY(1,1) PRIMARY KEY,
 
@@ -84,41 +85,48 @@ BEGIN
         SyncStatus NVARCHAR(50) NULL,
         SyncErrors NVARCHAR(MAX) NULL,
 
+        -- Deduplication
+        UniqueKey NVARCHAR(500) NULL,   -- CABNumber|ObjectName|Version
+        ContentHash NVARCHAR(64) NULL,   -- SHA256 hash of key fields
+
         -- Audit
         CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
         UpdatedAt DATETIME2 NULL
     )
 
     -- Create indexes
-    CREATE UNIQUE INDEX IX_MasterIndex_DocumentId ON daqa.MasterIndex(DocumentId)
-    CREATE INDEX IX_MasterIndex_CABNumber ON daqa.MasterIndex(CABNumber) WHERE CABNumber IS NOT NULL
-    CREATE INDEX IX_MasterIndex_Status ON daqa.MasterIndex(Status) WHERE Status IS NOT NULL
-    CREATE INDEX IX_MasterIndex_ApprovalStatus ON daqa.MasterIndex(ApprovalStatus) WHERE ApprovalStatus IS NOT NULL
-    CREATE INDEX IX_MasterIndex_BusinessOwner ON daqa.MasterIndex(BusinessOwner) WHERE BusinessOwner IS NOT NULL
-    CREATE INDEX IX_MasterIndex_DocumentType ON daqa.MasterIndex(DocumentType) WHERE DocumentType IS NOT NULL
+    CREATE UNIQUE INDEX IX_DocumentChanges_DocumentId ON daqa.DocumentChanges(DocumentId)
+    CREATE INDEX IX_DocumentChanges_UniqueKey ON daqa.DocumentChanges(UniqueKey) WHERE UniqueKey IS NOT NULL
+    CREATE INDEX IX_DocumentChanges_ContentHash ON daqa.DocumentChanges(ContentHash) WHERE ContentHash IS NOT NULL
+    CREATE INDEX IX_DocumentChanges_CABNumber ON daqa.DocumentChanges(CABNumber) WHERE CABNumber IS NOT NULL
+    CREATE INDEX IX_DocumentChanges_Status ON daqa.DocumentChanges(Status) WHERE Status IS NOT NULL
+    CREATE INDEX IX_DocumentChanges_ApprovalStatus ON daqa.DocumentChanges(ApprovalStatus) WHERE ApprovalStatus IS NOT NULL
+    CREATE INDEX IX_DocumentChanges_BusinessOwner ON daqa.DocumentChanges(BusinessOwner) WHERE BusinessOwner IS NOT NULL
+    CREATE INDEX IX_DocumentChanges_DocumentType ON daqa.DocumentChanges(DocumentType) WHERE DocumentType IS NOT NULL
+    CREATE INDEX IX_DocumentChanges_CAB_Object_Version ON daqa.DocumentChanges(CABNumber, ObjectName, Version)
 
-    PRINT 'Created daqa.MasterIndex table with indexes'
+    PRINT 'Created daqa.DocumentChanges table with indexes'
 END
 ELSE
 BEGIN
-    PRINT 'daqa.MasterIndex table already exists'
+    PRINT 'daqa.DocumentChanges table already exists'
 END
 GO
 
 -- Create trigger for UpdatedAt
-IF NOT EXISTS (SELECT * FROM sys.triggers WHERE name = 'TR_MasterIndex_UpdatedAt')
+IF NOT EXISTS (SELECT * FROM sys.triggers WHERE name = 'TR_DocumentChanges_UpdatedAt')
 BEGIN
     EXEC('
-    CREATE TRIGGER daqa.TR_MasterIndex_UpdatedAt
-    ON daqa.MasterIndex
+    CREATE TRIGGER daqa.TR_DocumentChanges_UpdatedAt
+    ON daqa.DocumentChanges
     AFTER UPDATE
     AS
     BEGIN
         SET NOCOUNT ON;
-        UPDATE daqa.MasterIndex
+        UPDATE daqa.DocumentChanges
         SET UpdatedAt = GETUTCDATE()
-        FROM daqa.MasterIndex mi
-        INNER JOIN inserted i ON mi.Id = i.Id
+        FROM daqa.DocumentChanges dc
+        INNER JOIN inserted i ON dc.Id = i.Id
     END
     ')
     PRINT 'Created UpdatedAt trigger'
@@ -126,10 +134,10 @@ END
 GO
 
 -- View for recent changes
-IF NOT EXISTS (SELECT * FROM sys.views WHERE name = 'vw_RecentMasterIndexChanges' AND schema_id = SCHEMA_ID('daqa'))
+IF NOT EXISTS (SELECT * FROM sys.views WHERE name = 'vw_RecentDocumentChanges' AND schema_id = SCHEMA_ID('daqa'))
 BEGIN
     EXEC('
-    CREATE VIEW daqa.vw_RecentMasterIndexChanges AS
+    CREATE VIEW daqa.vw_RecentDocumentChanges AS
     SELECT
         Id,
         DocumentId,
@@ -139,12 +147,32 @@ BEGIN
         ApprovalStatus,
         BusinessOwner,
         LastSyncedFromExcel,
-        SyncStatus
-    FROM daqa.MasterIndex
+        SyncStatus,
+        UniqueKey
+    FROM daqa.DocumentChanges
     WHERE LastSyncedFromExcel >= DATEADD(DAY, -7, GETUTCDATE())
     ')
-    PRINT 'Created vw_RecentMasterIndexChanges view'
+    PRINT 'Created vw_RecentDocumentChanges view'
 END
 GO
 
-PRINT 'MasterIndex setup complete'
+-- View for duplicate detection
+IF NOT EXISTS (SELECT * FROM sys.views WHERE name = 'vw_PotentialDuplicates' AND schema_id = SCHEMA_ID('daqa'))
+BEGIN
+    EXEC('
+    CREATE VIEW daqa.vw_PotentialDuplicates AS
+    SELECT
+        CABNumber,
+        ObjectName,
+        COUNT(*) AS DuplicateCount,
+        STRING_AGG(DocumentId, '', '') AS DocumentIds
+    FROM daqa.DocumentChanges
+    WHERE CABNumber IS NOT NULL AND ObjectName IS NOT NULL
+    GROUP BY CABNumber, ObjectName
+    HAVING COUNT(*) > 1
+    ')
+    PRINT 'Created vw_PotentialDuplicates view'
+END
+GO
+
+PRINT 'DocumentChanges setup complete'

@@ -16,7 +16,8 @@ using Enterprise.Documentation.Core.Domain.Models;
 namespace Enterprise.Documentation.Core.Application.Services.ExcelSync;
 
 /// <summary>
-/// Background service that watches an Excel MasterIndex file and syncs changes to SQL database.
+/// Background service that watches an Excel change tracking file and syncs to SQL database.
+/// Supports both local files and SharePoint Online via Microsoft Graph API.
 /// Uses EPPlus to read Excel and Dapper for SQL operations.
 /// </summary>
 public class ExcelToSqlSyncService : BackgroundService
@@ -26,8 +27,13 @@ public class ExcelToSqlSyncService : BackgroundService
     private readonly string _connectionString;
     private readonly string _excelFilePath;
     private readonly int _syncIntervalSeconds;
+    private readonly bool _isSharePoint;
+    private readonly string? _sharePointSiteUrl;
+    private readonly string? _sharePointDriveId;
+    private readonly string? _sharePointItemPath;
     private FileSystemWatcher? _fileWatcher;
     private DateTime _lastSyncTime = DateTime.MinValue;
+    private string? _lastSharePointETag;
 
     public ExcelToSqlSyncService(
         ILogger<ExcelToSqlSyncService> logger,
@@ -37,8 +43,22 @@ public class ExcelToSqlSyncService : BackgroundService
         _configuration = configuration;
         _connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("DefaultConnection string not configured");
-        _excelFilePath = configuration["ExcelSync:MasterIndexPath"]
-            ?? @"C:\Data\MasterIndex.xlsx";
+
+        // Check if using SharePoint or local file
+        _isSharePoint = configuration.GetValue<bool>("ExcelSync:UseSharePoint");
+
+        if (_isSharePoint)
+        {
+            _sharePointSiteUrl = configuration["ExcelSync:SharePoint:SiteUrl"];
+            _sharePointDriveId = configuration["ExcelSync:SharePoint:DriveId"];
+            _sharePointItemPath = configuration["ExcelSync:SharePoint:ItemPath"];
+            _excelFilePath = Path.Combine(Path.GetTempPath(), "ChangeDocuments.xlsx");
+        }
+        else
+        {
+            _excelFilePath = configuration["ExcelSync:LocalFilePath"]
+                ?? @"C:\Data\ChangeDocuments.xlsx";
+        }
 
         if (int.TryParse(configuration["ExcelSync:SyncIntervalSeconds"], out var interval))
         {
@@ -143,9 +163,9 @@ public class ExcelToSqlSyncService : BackgroundService
         }
     }
 
-    private List<MasterIndexEntry> ReadExcelFile()
+    private List<DocumentChangeEntry> ReadExcelFile()
     {
-        var entries = new List<MasterIndexEntry>();
+        var entries = new List<DocumentChangeEntry>();
 
         using var package = new ExcelPackage(new FileInfo(_excelFilePath));
         var worksheet = package.Workbook.Worksheets.FirstOrDefault();
@@ -191,7 +211,7 @@ public class ExcelToSqlSyncService : BackgroundService
         return entries;
     }
 
-    private MasterIndexEntry? MapRowToEntry(ExcelWorksheet ws, int row, Dictionary<string, int> columnMap)
+    private DocumentChangeEntry? MapRowToEntry(ExcelWorksheet ws, int row, Dictionary<string, int> columnMap)
     {
         string GetValue(string columnName)
         {
@@ -222,7 +242,7 @@ public class ExcelToSqlSyncService : BackgroundService
             return null;
         }
 
-        var entry = new MasterIndexEntry
+        var entry = new DocumentChangeEntry
         {
             // Core Identifiers
             DocumentId = GetValue("DocumentId") ?? GetValue("Document ID") ?? GetValue("DocID"),
@@ -287,10 +307,10 @@ public class ExcelToSqlSyncService : BackgroundService
     }
 
     private async Task<(int inserted, int updated, int errors)> UpsertToSqlAsync(
-        List<MasterIndexEntry> entries,
+        List<DocumentChangeEntry> entries,
         CancellationToken cancellationToken)
     {
-        int inserted = 0, updated = 0, errors = 0;
+        int inserted = 0, updated = 0, errors = 0, skipped = 0;
 
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
@@ -299,20 +319,51 @@ public class ExcelToSqlSyncService : BackgroundService
         {
             try
             {
-                // Check if exists by DocumentId
-                var existingId = await connection.QueryFirstOrDefaultAsync<int?>(
-                    "SELECT Id FROM daqa.MasterIndex WHERE DocumentId = @DocumentId",
-                    new { entry.DocumentId });
+                // Generate deduplication keys
+                entry.UniqueKey = entry.GenerateUniqueKey();
+                entry.ContentHash = entry.GenerateContentHash();
 
-                if (existingId.HasValue)
+                // Check for duplicates by multiple criteria
+                var existing = await connection.QueryFirstOrDefaultAsync<(int Id, string? ContentHash)?>(
+                    @"SELECT Id, ContentHash FROM daqa.DocumentChanges
+                      WHERE DocumentId = @DocumentId
+                         OR UniqueKey = @UniqueKey",
+                    new { entry.DocumentId, entry.UniqueKey });
+
+                if (existing.HasValue)
                 {
-                    // Update existing
-                    entry.Id = existingId.Value;
+                    // Check if content actually changed
+                    if (existing.Value.ContentHash == entry.ContentHash)
+                    {
+                        // No changes - skip
+                        skipped++;
+                        continue;
+                    }
+
+                    // Update existing (content changed)
+                    entry.Id = existing.Value.Id;
                     await connection.ExecuteAsync(GetUpdateSql(), entry);
                     updated++;
                 }
                 else
                 {
+                    // Check for similar documents (same CAB + Object but different version)
+                    var similar = await connection.QueryFirstOrDefaultAsync<int?>(
+                        @"SELECT Id FROM daqa.DocumentChanges
+                          WHERE CABNumber = @CABNumber
+                            AND ObjectName = @ObjectName
+                            AND Version = @Version",
+                        new { entry.CABNumber, entry.ObjectName, entry.Version });
+
+                    if (similar.HasValue)
+                    {
+                        _logger.LogWarning(
+                            "Skipping duplicate entry: CAB={CAB}, Object={Object}, Version={Version}",
+                            entry.CABNumber, entry.ObjectName, entry.Version);
+                        skipped++;
+                        continue;
+                    }
+
                     // Insert new
                     await connection.ExecuteAsync(GetInsertSql(), entry);
                     inserted++;
@@ -325,11 +376,12 @@ public class ExcelToSqlSyncService : BackgroundService
             }
         }
 
+        _logger.LogInformation("Skipped {Skipped} unchanged/duplicate entries", skipped);
         return (inserted, updated, errors);
     }
 
     private static string GetInsertSql() => @"
-        INSERT INTO daqa.MasterIndex (
+        INSERT INTO daqa.DocumentChanges (
             DocumentId, CABNumber, ChangeRequestId, Title, Description, DocumentType,
             Category, SubCategory, TierClassification, DataClassification, SecurityClearance,
             BusinessOwner, TechnicalOwner, Author, Department, Team,
@@ -337,7 +389,7 @@ public class ExcelToSqlSyncService : BackgroundService
             CreatedDate, ModifiedDate, EffectiveDate, ExpirationDate, Version, RevisionNumber,
             DatabaseName, SchemaName, ObjectName, ObjectType, SourceTables, TargetTables,
             FilePath, GeneratedDocPath, TemplateUsed, Status, IsActive, IsDeleted, Tags, Notes,
-            ExcelRowNumber, LastSyncedFromExcel, SyncStatus
+            ExcelRowNumber, LastSyncedFromExcel, SyncStatus, UniqueKey, ContentHash
         ) VALUES (
             @DocumentId, @CABNumber, @ChangeRequestId, @Title, @Description, @DocumentType,
             @Category, @SubCategory, @TierClassification, @DataClassification, @SecurityClearance,
@@ -346,11 +398,11 @@ public class ExcelToSqlSyncService : BackgroundService
             @CreatedDate, @ModifiedDate, @EffectiveDate, @ExpirationDate, @Version, @RevisionNumber,
             @DatabaseName, @SchemaName, @ObjectName, @ObjectType, @SourceTables, @TargetTables,
             @FilePath, @GeneratedDocPath, @TemplateUsed, @Status, @IsActive, @IsDeleted, @Tags, @Notes,
-            @ExcelRowNumber, @LastSyncedFromExcel, @SyncStatus
+            @ExcelRowNumber, @LastSyncedFromExcel, @SyncStatus, @UniqueKey, @ContentHash
         )";
 
     private static string GetUpdateSql() => @"
-        UPDATE daqa.MasterIndex SET
+        UPDATE daqa.DocumentChanges SET
             CABNumber = @CABNumber, ChangeRequestId = @ChangeRequestId, Title = @Title,
             Description = @Description, DocumentType = @DocumentType, Category = @Category,
             SubCategory = @SubCategory, TierClassification = @TierClassification,
@@ -366,7 +418,7 @@ public class ExcelToSqlSyncService : BackgroundService
             FilePath = @FilePath, GeneratedDocPath = @GeneratedDocPath, TemplateUsed = @TemplateUsed,
             Status = @Status, IsActive = @IsActive, Tags = @Tags, Notes = @Notes,
             ExcelRowNumber = @ExcelRowNumber, LastSyncedFromExcel = @LastSyncedFromExcel,
-            SyncStatus = @SyncStatus
+            SyncStatus = @SyncStatus, UniqueKey = @UniqueKey, ContentHash = @ContentHash
         WHERE Id = @Id";
 
     public override void Dispose()
