@@ -192,7 +192,9 @@ public class AuthController : ControllerBase
     private string GenerateJwtToken(User user)
     {
         var jwtSettings = _configuration.GetSection("JwtSettings");
-        var secretKey = jwtSettings["SecretKey"] ?? "your-super-secret-key-that-is-at-least-32-characters-long";
+        var secretKey = jwtSettings["SecretKey"]
+            ?? Environment.GetEnvironmentVariable("JWT_SECRET_KEY")
+            ?? throw new InvalidOperationException("JWT SecretKey is not configured. Set it in appsettings.json or JWT_SECRET_KEY environment variable.");
         var issuer = jwtSettings["Issuer"] ?? "Enterprise.Documentation.Api";
         var audience = jwtSettings["Audience"] ?? "Enterprise.Documentation.Client";
 

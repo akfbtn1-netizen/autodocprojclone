@@ -429,10 +429,10 @@ public class AgentConfiguration : BaseValueObject
     }
 
     public AgentConfiguration(
-        Dictionary<string, object>? settings = null,
-        TimeSpan? requestTimeout = null,
-        int retryAttempts = 3,
-        TimeSpan? retryDelay = null)
+        Dictionary<string, object>? settings,
+        TimeSpan? requestTimeout,
+        int retryAttempts,
+        TimeSpan? retryDelay)
     {
         Settings = settings ?? new Dictionary<string, object>();
         RequestTimeout = requestTimeout ?? TimeSpan.FromMinutes(5);
