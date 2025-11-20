@@ -133,9 +133,18 @@ public class ExcelToSqlSyncService : BackgroundService
             return entries;
         }
 
+        _logger.LogInformation("Reading worksheet: {WorksheetName}, Dimensions: {Dimensions}",
+            worksheet.Name, worksheet.Dimension?.Address ?? "null");
+
+        if (worksheet.Dimension == null)
+        {
+            _logger.LogWarning("Worksheet has no data (Dimension is null)");
+            return entries;
+        }
+
         // Build column index map from header row
         var columnMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        for (int col = 1; col <= worksheet.Dimension?.End.Column; col++)
+        for (int col = 1; col <= worksheet.Dimension.End.Column; col++)
         {
             var header = worksheet.Cells[1, col].Text?.Trim();
             if (!string.IsNullOrEmpty(header))
@@ -144,10 +153,15 @@ public class ExcelToSqlSyncService : BackgroundService
             }
         }
 
-        _logger.LogDebug("Found columns: {Columns}", string.Join(", ", columnMap.Keys));
+        _logger.LogInformation("Found {ColumnCount} columns: {Columns}",
+            columnMap.Count, string.Join(", ", columnMap.Keys));
 
         // Read data rows
-        for (int row = 2; row <= worksheet.Dimension?.End.Row; row++)
+        int totalRows = worksheet.Dimension.End.Row - 1; // Minus header row
+        int skippedRows = 0;
+        _logger.LogInformation("Processing {TotalRows} data rows (rows 2-{EndRow})", totalRows, worksheet.Dimension.End.Row);
+
+        for (int row = 2; row <= worksheet.Dimension.End.Row; row++)
         {
             if (cancellationToken.IsCancellationRequested) break;
 
@@ -201,12 +215,20 @@ public class ExcelToSqlSyncService : BackgroundService
                 {
                     entries.Add(entry);
                 }
+                else
+                {
+                    skippedRows++;
+                    _logger.LogDebug("Skipped row {Row}: no CAB#, JIRA#, or Table", row);
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Error reading row {Row}", row);
+                skippedRows++;
             }
         }
+
+        _logger.LogInformation("Parsed {ValidEntries} valid entries, skipped {SkippedRows} rows", entries.Count, skippedRows);
 
         return entries;
     }
