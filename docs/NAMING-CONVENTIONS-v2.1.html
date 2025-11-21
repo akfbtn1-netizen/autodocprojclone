@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation Naming Conventions - Version 2.1 (Enhanced)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        .highlight-new {
+            background-color: #28a745;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .section {
+            background: white;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        h3 {
+            color: #764ba2;
+            margin-top: 25px;
+        }
+        .format-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            font-size: 1.3em;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+        }
+        .example {
+            background-color: #e8f4f8;
+            border-left: 4px solid #17a2b8;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th {
+            background-color: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        .badge-required {
+            background-color: #dc3545;
+            color: white;
+        }
+        .badge-optional {
+            background-color: #6c757d;
+            color: white;
+        }
+        .badge-new {
+            background-color: #28a745;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📋 Documentation Naming Conventions</h1>
+        <p>Version 2.1 - Enhanced with Object/Column Specification <span class="highlight-new">NEW</span></p>
+        <p>Last Updated: November 2025</p>
+    </div>
+
+    <!-- SECTION 1: WHAT'S NEW -->
+    <div class="section">
+        <h2>🎯 What's New in Version 2.1</h2>
+
+        <div class="success">
+            <strong>✨ Enhanced DocId Format:</strong> DocIds now include the affected object and column name for better identification and searchability.
+
+            <p style="margin-top: 15px;"><strong>Benefits:</strong></p>
+            <ul>
+                <li>Self-documenting: Know exactly what was changed without opening the file</li>
+                <li>Easier search: Find all changes to a specific table or column</li>
+                <li>Better organization: Changes automatically grouped by object</li>
+                <li>Improved traceability: Full context in the DocId itself</li>
+            </ul>
+        </div>
+
+        <h3>Format Comparison:</h3>
+        <table>
+            <tr>
+                <th>Version</th>
+                <th>Format</th>
+                <th>Example</th>
+            </tr>
+            <tr style="background-color: #fff3cd;">
+                <td><strong>v2.0 (Old)</strong></td>
+                <td><code>{Type}-{Seq#}-{Jira}</code></td>
+                <td><code>EN-0001-BAS-123</code></td>
+            </tr>
+            <tr style="background-color: #d4edda;">
+                <td><strong>v2.1 (New)</strong> <span class="badge badge-new">CURRENT</span></td>
+                <td><code>{Type}-{Seq#}-{Object}[-{Column}]-{Jira}</code></td>
+                <td><code>EN-0001-irf_policy-PolicyNumber-BAS-123</code></td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- SECTION 2: ENHANCED FORMAT -->
+    <div class="section">
+        <h2>2. Enhanced Naming Format</h2>
+
+        <div class="format-box">
+            {DocumentType}-{SequentialNumber}-{ObjectName}[-{ColumnName}]-{JiraNumber}
+        </div>
+
+        <h3>Components:</h3>
+        <table>
+            <tr>
+                <th>Component</th>
+                <th>Format</th>
+                <th>Description</th>
+                <th>Required</th>
+            </tr>
+            <tr>
+                <td><strong>DocumentType</strong></td>
+                <td>2 uppercase letters</td>
+                <td>Identifies the type of document (BR, EN, DF, etc.)</td>
+                <td><span class="badge badge-required">REQUIRED</span></td>
+            </tr>
+            <tr>
+                <td><strong>SequentialNumber</strong></td>
+                <td>4 digits (zero-padded)</td>
+                <td>Auto-incremented counter per document type</td>
+                <td><span class="badge badge-required">REQUIRED</span></td>
+            </tr>
+            <tr style="background-color: #e8f4f8;">
+                <td><strong>ObjectName</strong> <span class="badge badge-new">NEW</span></td>
+                <td>Table/USP name</td>
+                <td>The database object affected (without schema prefix)</td>
+                <td><span class="badge badge-required">REQUIRED</span></td>
+            </tr>
+            <tr style="background-color: #e8f4f8;">
+                <td><strong>ColumnName</strong> <span class="badge badge-new">NEW</span></td>
+                <td>Column name</td>
+                <td>Specific column changed (omit for object-level changes)</td>
+                <td><span class="badge badge-optional">OPTIONAL</span></td>
+            </tr>
+            <tr>
+                <td><strong>JiraNumber</strong></td>
+                <td>{Project}-{Number}</td>
+                <td>Jira ticket reference (e.g., BAS-123)</td>
+                <td><span class="badge badge-optional">OPTIONAL</span></td>
+            </tr>
+        </table>
+
+        <h3>Enhanced Examples:</h3>
+        <div class="example">
+            <strong>Column-Specific Enhancement:</strong><br>
+            <code>EN-0001-irf_policy-PolicyNumber-BAS-123</code><br>
+            <em>Meaning: Enhancement #1 to the PolicyNumber column in irf_policy table, tracked in Jira BAS-123</em><br><br>
+
+            <strong>Column-Specific Defect Fix:</strong><br>
+            <code>DF-0002-irf_claim-ClaimAmount-BAS-456</code><br>
+            <em>Meaning: Defect Fix #2 to the ClaimAmount column in irf_claim table, tracked in Jira BAS-456</em><br><br>
+
+            <strong>Table-Level Change:</strong><br>
+            <code>EN-0003-irf_policy-BAS-789</code><br>
+            <em>Meaning: Enhancement #3 to the entire irf_policy table (no specific column), tracked in Jira BAS-789</em><br><br>
+
+            <strong>Stored Procedure Enhancement:</strong><br>
+            <code>BR-0001-usp_LoadPolicy-BAS-999</code><br>
+            <em>Meaning: Business Request #1 for the usp_LoadPolicy stored procedure, tracked in Jira BAS-999</em>
+        </div>
+    </div>
+
+    <!-- SECTION 3: OBJECT/COLUMN RULES -->
+    <div class="section">
+        <h2>3. Object and Column Naming Rules</h2>
+
+        <h3>ObjectName Format:</h3>
+        <ul>
+            <li><strong>Tables:</strong> Use table name without schema (e.g., <code>irf_policy</code> not <code>gwpc.irf_policy</code>)</li>
+            <li><strong>Stored Procedures:</strong> Use full procedure name including prefix (e.g., <code>usp_LoadPolicy</code>)</li>
+            <li><strong>Views:</strong> Use view name without schema (e.g., <code>vw_PolicySummary</code>)</li>
+        </ul>
+
+        <h3>When to Include ColumnName:</h3>
+        <table>
+            <tr>
+                <th>Scenario</th>
+                <th>Include Column?</th>
+                <th>Example</th>
+            </tr>
+            <tr>
+                <td>Change affects a specific column</td>
+                <td><span class="badge badge-required">YES</span></td>
+                <td><code>EN-0001-irf_policy-PolicyNumber-BAS-123</code></td>
+            </tr>
+            <tr>
+                <td>Change affects multiple columns</td>
+                <td><span class="badge badge-optional">NO</span></td>
+                <td><code>EN-0002-irf_policy-BAS-456</code></td>
+            </tr>
+            <tr>
+                <td>Change affects entire table</td>
+                <td><span class="badge badge-optional">NO</span></td>
+                <td><code>BR-0003-irf_claim-BAS-789</code></td>
+            </tr>
+            <tr>
+                <td>Change is to stored procedure</td>
+                <td><span class="badge badge-optional">NO</span></td>
+                <td><code>DF-0004-usp_LoadPolicy-BAS-999</code></td>
+            </tr>
+        </table>
+
+        <div class="warning">
+            <strong>⚠️ Important:</strong> If the change affects multiple columns, omit the ColumnName from the DocId and list all affected columns in the document content itself.
+        </div>
+    </div>
+
+    <!-- SECTION 4: FILE PATH STRUCTURE -->
+    <div class="section">
+        <h2>4. Enhanced File Path Structure</h2>
+
+        <div class="format-box" style="font-size: 0.9em;">
+            C:\Temp\Documentation-Catalog\{Database}\{Schema}\{ObjectType}\{ObjectName}\Change Documentation\{DocId}.docx
+        </div>
+
+        <h3>Path Examples with New Format:</h3>
+        <div class="example">
+            <strong>Column-specific enhancement:</strong><br>
+            <code>C:\Temp\Documentation-Catalog\IRFS1\gwpc\Tables\irf_policy\Change Documentation\EN-0001-irf_policy-PolicyNumber-BAS-123.docx</code><br><br>
+
+            <strong>Table-level enhancement:</strong><br>
+            <code>C:\Temp\Documentation-Catalog\IRFS1\gwpc\Tables\irf_policy\Change Documentation\EN-0003-irf_policy-BAS-789.docx</code><br><br>
+
+            <strong>Stored procedure business request:</strong><br>
+            <code>C:\Temp\Documentation-Catalog\IRFS1\gwpc\StoredProcedures\usp_LoadPolicy\Change Documentation\BR-0001-usp_LoadPolicy-BAS-999.docx</code><br><br>
+
+            <strong>Column-specific defect fix:</strong><br>
+            <code>C:\Temp\Documentation-Catalog\IRFS1\gwpc\Tables\irf_claim\Change Documentation\DF-0002-irf_claim-ClaimAmount-BAS-456.docx</code>
+        </div>
+
+        <div class="success">
+            <strong>✅ Benefits of Enhanced Path Structure:</strong>
+            <ul>
+                <li>All changes to a specific object are in one folder</li>
+                <li>File names show exactly what was changed</li>
+                <li>Easy to find all enhancements vs defect fixes for an object</li>
+                <li>Column-specific changes clearly identified in filename</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- SECTION 5: SEARCH & RETRIEVAL -->
+    <div class="section">
+        <h2>5. Search and Retrieval Benefits</h2>
+
+        <h3>Enhanced Search Capabilities:</h3>
+        <table>
+            <tr>
+                <th>Search For</th>
+                <th>Pattern</th>
+                <th>Example</th>
+                <th>Results</th>
+            </tr>
+            <tr>
+                <td>All changes to a specific table</td>
+                <td><code>*-{TableName}-*</code></td>
+                <td><code>*-irf_policy-*</code></td>
+                <td>All changes to irf_policy table</td>
+            </tr>
+            <tr>
+                <td>All changes to a specific column</td>
+                <td><code>*-{TableName}-{ColumnName}-*</code></td>
+                <td><code>*-irf_policy-PolicyNumber-*</code></td>
+                <td>All changes to PolicyNumber in irf_policy</td>
+            </tr>
+            <tr>
+                <td>All enhancements to a table</td>
+                <td><code>EN-*-{TableName}-*</code></td>
+                <td><code>EN-*-irf_policy-*</code></td>
+                <td>All enhancements to irf_policy</td>
+            </tr>
+            <tr>
+                <td>All defect fixes for a stored procedure</td>
+                <td><code>DF-*-{ProcedureName}-*</code></td>
+                <td><code>DF-*-usp_LoadPolicy-*</code></td>
+                <td>All defect fixes to usp_LoadPolicy</td>
+            </tr>
+        </table>
+
+        <h3>Database Query Examples:</h3>
+        <div class="example">
+            <strong>Find all changes to irf_policy table:</strong>
+            <pre style="background-color: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto;">
+SELECT SourceDocumentID, DocumentTitle, ColumnName, DocumentType
+FROM DaQa.MasterIndex
+WHERE TableName = 'irf_policy'
+ORDER BY CreatedDate DESC;</pre>
+
+            <strong>Find all column-specific changes:</strong>
+            <pre style="background-color: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto;">
+SELECT SourceDocumentID, TableName, ColumnName, DocumentType
+FROM DaQa.MasterIndex
+WHERE ColumnName IS NOT NULL
+ORDER BY TableName, ColumnName;</pre>
+
+            <strong>Find all enhancements to PolicyNumber column:</strong>
+            <pre style="background-color: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto;">
+SELECT SourceDocumentID, DocumentTitle, GeneratedDocURL
+FROM DaQa.MasterIndex
+WHERE TableName = 'irf_policy'
+  AND ColumnName = 'PolicyNumber'
+  AND DocumentType = 'Enhancement';</pre>
+        </div>
+    </div>
+
+    <!-- SECTION 6: MIGRATION GUIDE -->
+    <div class="section">
+        <h2>6. Migration from v2.0 to v2.1</h2>
+
+        <div class="warning">
+            <strong>⚠️ Existing Documents:</strong> Documents created before this version will continue to use the old format. No retroactive changes are needed.
+        </div>
+
+        <h3>For New Documents (Starting Now):</h3>
+        <ul>
+            <li>Auto-draft service automatically generates DocIds in new format</li>
+            <li>Object name extracted from Excel "Table" column</li>
+            <li>Column name extracted from Excel "Column" column</li>
+            <li>Manual entry must follow new format</li>
+        </ul>
+
+        <h3>Validation:</h3>
+        <div class="example">
+            <strong>New Format Regex:</strong><br>
+            <code>^[A-Z]{2}-\d{4}-[a-zA-Z_]+(-[a-zA-Z_]+)?(-[A-Z]+-\d+)?$</code><br><br>
+
+            <strong>Examples that Pass:</strong><br>
+            ✅ <code>EN-0001-irf_policy-PolicyNumber-BAS-123</code><br>
+            ✅ <code>BR-0002-usp_LoadPolicy-BAS-456</code><br>
+            ✅ <code>DF-0003-irf_claim-ClaimAmount-TECH-789</code><br>
+            ✅ <code>EN-0004-irf_policy-BAS-999</code> (no column)<br><br>
+
+            <strong>Examples that Fail:</strong><br>
+            ❌ <code>EN-0001-BAS-123</code> (missing object name)<br>
+            ❌ <code>en-0001-irf_policy-BAS-123</code> (lowercase type)<br>
+            ❌ <code>EN-01-irf_policy-BAS-123</code> (not 4 digits)
+        </div>
+    </div>
+
+    <!-- SECTION 7: BEST PRACTICES -->
+    <div class="section">
+        <h2>7. Best Practices with Enhanced Format</h2>
+
+        <div class="success">
+            <strong>✅ DO:</strong>
+            <ul>
+                <li>Always include object name in DocId</li>
+                <li>Include column name for column-specific changes</li>
+                <li>Use exact object/column names from database (case-sensitive)</li>
+                <li>Keep object names without schema prefix</li>
+                <li>Verify object/column exist in database before generating DocId</li>
+            </ul>
+        </div>
+
+        <div class="warning">
+            <strong>❌ DON'T:</strong>
+            <ul>
+                <li>Don't include schema in object name (use <code>irf_policy</code>, not <code>gwpc.irf_policy</code>)</li>
+                <li>Don't include column name for object-level or multi-column changes</li>
+                <li>Don't use abbreviated or shortened object names</li>
+                <li>Don't change object/column spelling from database</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="section" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <h2 style="color: white; border-bottom: 3px solid white;">Document Information</h2>
+        <table style="color: white;">
+            <tr style="background: transparent;">
+                <td><strong>Version:</strong></td>
+                <td>2.1 (Enhanced)</td>
+            </tr>
+            <tr style="background: transparent;">
+                <td><strong>Last Updated:</strong></td>
+                <td>November 2025</td>
+            </tr>
+            <tr style="background: transparent;">
+                <td><strong>Changes in v2.1:</strong></td>
+                <td>Added object and column name to DocId format</td>
+            </tr>
+            <tr style="background: transparent;">
+                <td><strong>Owner:</strong></td>
+                <td>Enterprise Documentation Platform Team</td>
+            </tr>
+            <tr style="background: transparent;">
+                <td><strong>Review Frequency:</strong></td>
+                <td>Quarterly</td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>
