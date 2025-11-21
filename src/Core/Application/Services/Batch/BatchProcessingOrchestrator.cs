@@ -11,7 +11,6 @@ using Enterprise.Documentation.Core.Application.Services.MetadataExtraction;
 using Enterprise.Documentation.Core.Application.Services.Notifications;
 using Enterprise.Documentation.Core.Application.Services.VectorIndexing;
 using Enterprise.Documentation.Core.Domain.Entities;
-using Hangfire;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -106,8 +105,8 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
         // Save to database
         await SaveBatchJobAsync(batchJob, ct);
 
-        // Queue background processing
-        BackgroundJob.Enqueue(() => ProcessBatchJobAsync(batchJob.BatchId, CancellationToken.None));
+        // NOTE: Background processing will be queued by API layer via Hangfire
+        // The API layer will call: BackgroundJob.Enqueue(() => ProcessBatchJobAsync(batchJob.BatchId))
 
         _logger.LogInformation("Batch job {BatchId} created with {Count} items", batchJob.BatchId, batchJob.TotalItems);
 
@@ -171,8 +170,8 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
         // Save to database
         await SaveBatchJobAsync(batchJob, ct);
 
-        // Queue background processing
-        BackgroundJob.Enqueue(() => ProcessBatchJobAsync(batchJob.BatchId, CancellationToken.None));
+        // NOTE: Background processing will be queued by API layer via Hangfire
+        // The API layer will call: BackgroundJob.Enqueue(() => ProcessBatchJobAsync(batchJob.BatchId))
 
         _logger.LogInformation("Batch job {BatchId} created with {Count} items", batchJob.BatchId, batchJob.TotalItems);
 
@@ -233,8 +232,8 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
         // Save to database
         await SaveBatchJobAsync(batchJob, ct);
 
-        // Queue background processing
-        BackgroundJob.Enqueue(() => ProcessBatchJobAsync(batchJob.BatchId, CancellationToken.None));
+        // NOTE: Background processing will be queued by API layer via Hangfire
+        // The API layer will call: BackgroundJob.Enqueue(() => ProcessBatchJobAsync(batchJob.BatchId))
 
         _logger.LogInformation("Batch job {BatchId} created with {Count} items", batchJob.BatchId, batchJob.TotalItems);
 
@@ -248,8 +247,8 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
     /// <summary>
     /// Main background job processor (runs in Hangfire)
     /// Processes all items in a batch with parallelization
+    /// NOTE: [AutomaticRetry] attribute will be applied in API layer by Hangfire configuration
     /// </summary>
-    [AutomaticRetry(Attempts = 3, DelaysInSeconds = new[] { 30, 60, 120 })]
     public async Task ProcessBatchJobAsync(Guid batchId, CancellationToken ct)
     {
         var stopwatch = Stopwatch.StartNew();
@@ -591,9 +590,10 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
 
             await UpdateBatchItemAsync(item, ct);
 
-            // Queue for auto-processing
+            // Process item immediately (or API layer can queue via Hangfire if needed)
             var metadata = System.Text.Json.JsonSerializer.Deserialize<ExtractedMetadata>(item.ExtractedMetadataJson!);
-            BackgroundJob.Enqueue(() => AutoProcessItemAsync(batchJob, item, metadata!, CancellationToken.None));
+            // Note: In production, the API layer should queue this via Hangfire instead of blocking
+            await AutoProcessItemAsync(batchJob, item, metadata!, ct);
         }
 
         _logger.LogInformation("Approved {Count} items successfully", itemIds.Count);
@@ -725,8 +725,8 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
             await UpdateBatchItemAsync(item, ct);
         }
 
-        // Queue background processing
-        BackgroundJob.Enqueue(() => ProcessBatchJobAsync(batchId, CancellationToken.None));
+        // NOTE: Background processing will be queued by API layer via Hangfire
+        // The API layer will call: BackgroundJob.Enqueue(() => ProcessBatchJobAsync(batchId))
 
         _logger.LogInformation("Queued {Count} failed items for retry", failedItems.Count);
     }

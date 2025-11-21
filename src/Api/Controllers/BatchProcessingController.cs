@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Enterprise.Documentation.Core.Application.Services.Batch;
 using Enterprise.Documentation.Core.Domain.Entities;
+using Hangfire;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -82,6 +83,9 @@ public class BatchProcessingController : ControllerBase
                 request.Options,
                 ct);
 
+            // Queue background processing via Hangfire
+            BackgroundJob.Enqueue(() => _orchestrator.ProcessBatchJobAsync(batchId, CancellationToken.None));
+
             return Ok(new StartBatchResponse
             {
                 BatchId = batchId,
@@ -138,6 +142,9 @@ public class BatchProcessingController : ControllerBase
                 request.UserId,
                 request.Options,
                 ct);
+
+            // Queue background processing via Hangfire
+            BackgroundJob.Enqueue(() => _orchestrator.ProcessBatchJobAsync(batchId, CancellationToken.None));
 
             return Ok(new StartBatchResponse
             {
@@ -200,6 +207,9 @@ public class BatchProcessingController : ControllerBase
                 request.UserId,
                 request.Options,
                 ct);
+
+            // Queue background processing via Hangfire
+            BackgroundJob.Enqueue(() => _orchestrator.ProcessBatchJobAsync(batchId, CancellationToken.None));
 
             return Ok(new StartBatchResponse
             {
@@ -343,6 +353,10 @@ public class BatchProcessingController : ControllerBase
         try
         {
             await _orchestrator.RetryFailedItemsAsync(batchId, ct);
+
+            // Queue background processing via Hangfire
+            BackgroundJob.Enqueue(() => _orchestrator.ProcessBatchJobAsync(batchId, CancellationToken.None));
+
             return Ok(new { message = $"Failed items in batch {batchId} queued for retry" });
         }
         catch (KeyNotFoundException ex)
