@@ -1,6 +1,6 @@
 -- =============================================
 -- Batch Processing Tables - Support for Multi-Source Batch Documentation
--- Includes BatchJobs and BatchJobItems with confidence tracking
+-- Fixed for SQL Server compatibility and DaQa schema requirement
 -- =============================================
 
 USE [IRFS1]
@@ -13,16 +13,65 @@ BEGIN
 END
 GO
 
+PRINT 'Starting Batch Processing Tables creation...'
+GO
+
 -- =============================================
--- DROP TABLES (for development/clean install)
+-- DROP EXISTING OBJECTS (in correct order)
 -- =============================================
 
+-- Drop views first
+IF OBJECT_ID('DaQa.vw_VectorIndexingStatus', 'V') IS NOT NULL
+    DROP VIEW DaQa.vw_VectorIndexingStatus
+GO
+
+IF OBJECT_ID('DaQa.vw_ConfidenceDistribution', 'V') IS NOT NULL
+    DROP VIEW DaQa.vw_ConfidenceDistribution
+GO
+
+IF OBJECT_ID('DaQa.vw_BatchProcessingMetrics', 'V') IS NOT NULL
+    DROP VIEW DaQa.vw_BatchProcessingMetrics
+GO
+
+IF OBJECT_ID('DaQa.vw_ItemsRequiringReview', 'V') IS NOT NULL
+    DROP VIEW DaQa.vw_ItemsRequiringReview
+GO
+
+IF OBJECT_ID('DaQa.vw_BatchJobSummary', 'V') IS NOT NULL
+    DROP VIEW DaQa.vw_BatchJobSummary
+GO
+
+-- Drop stored procedures
+IF OBJECT_ID('DaQa.usp_CancelBatch', 'P') IS NOT NULL
+    DROP PROCEDURE DaQa.usp_CancelBatch
+GO
+
+IF OBJECT_ID('DaQa.usp_RejectItems', 'P') IS NOT NULL
+    DROP PROCEDURE DaQa.usp_RejectItems
+GO
+
+IF OBJECT_ID('DaQa.usp_ApproveItems', 'P') IS NOT NULL
+    DROP PROCEDURE DaQa.usp_ApproveItems
+GO
+
+IF OBJECT_ID('DaQa.usp_GetItemsRequiringReview', 'P') IS NOT NULL
+    DROP PROCEDURE DaQa.usp_GetItemsRequiringReview
+GO
+
+IF OBJECT_ID('DaQa.usp_GetBatchStatus', 'P') IS NOT NULL
+    DROP PROCEDURE DaQa.usp_GetBatchStatus
+GO
+
+-- Drop tables (child first, then parent)
 IF OBJECT_ID('DaQa.BatchJobItems', 'U') IS NOT NULL
     DROP TABLE DaQa.BatchJobItems
 GO
 
 IF OBJECT_ID('DaQa.BatchJobs', 'U') IS NOT NULL
     DROP TABLE DaQa.BatchJobs
+GO
+
+PRINT 'Existing objects dropped successfully'
 GO
 
 -- =============================================
@@ -32,7 +81,7 @@ GO
 CREATE TABLE DaQa.BatchJobs
 (
     -- Primary Key
-    BatchId UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_BatchJobs PRIMARY KEY CLUSTERED,
+    BatchId UNIQUEIDENTIFIER NOT NULL,
 
     -- Source Information
     SourceType NVARCHAR(50) NOT NULL, -- DatabaseSchema, FolderScan, ExcelImport, ManualUpload
@@ -47,6 +96,7 @@ CREATE TABLE DaQa.BatchJobs
     SuccessCount INT NOT NULL DEFAULT 0,
     FailedCount INT NOT NULL DEFAULT 0,
     RequiresReviewCount INT NOT NULL DEFAULT 0,
+    ProgressPercentage FLOAT NULL, -- Calculated: ProcessedCount / TotalItems * 100
 
     -- Confidence Tracking
     HighConfidenceCount INT NOT NULL DEFAULT 0,   -- >= 0.85
@@ -75,8 +125,14 @@ CREATE TABLE DaQa.BatchJobs
     CreatedBy NVARCHAR(200) NULL,
     CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
     ModifiedBy NVARCHAR(200) NULL,
-    ModifiedAt DATETIME2 NULL
+    ModifiedAt DATETIME2 NULL,
+
+    -- Primary Key Constraint
+    CONSTRAINT PK_BatchJobs PRIMARY KEY CLUSTERED (BatchId)
 )
+GO
+
+PRINT 'BatchJobs table created successfully'
 GO
 
 -- =============================================
@@ -86,11 +142,10 @@ GO
 CREATE TABLE DaQa.BatchJobItems
 (
     -- Primary Key
-    ItemId UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_BatchJobItems PRIMARY KEY CLUSTERED,
+    ItemId UNIQUEIDENTIFIER NOT NULL,
 
     -- Foreign Key
-    BatchId UNIQUEIDENTIFIER NOT NULL
-        CONSTRAINT FK_BatchJobItems_BatchJobs FOREIGN KEY REFERENCES DaQa.BatchJobs(BatchId) ON DELETE CASCADE,
+    BatchId UNIQUEIDENTIFIER NOT NULL,
 
     -- Object Information
     ObjectName NVARCHAR(200) NOT NULL,
@@ -131,8 +186,18 @@ CREATE TABLE DaQa.BatchJobItems
 
     -- Audit
     CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
-    ModifiedAt DATETIME2 NULL
+    ModifiedAt DATETIME2 NULL,
+
+    -- Primary Key Constraint
+    CONSTRAINT PK_BatchJobItems PRIMARY KEY CLUSTERED (ItemId),
+
+    -- Foreign Key Constraint
+    CONSTRAINT FK_BatchJobItems_BatchJobs FOREIGN KEY (BatchId)
+        REFERENCES DaQa.BatchJobs(BatchId) ON DELETE CASCADE
 )
+GO
+
+PRINT 'BatchJobItems table created successfully'
 GO
 
 -- =============================================
@@ -147,7 +212,7 @@ GO
 
 -- Find items requiring review
 CREATE NONCLUSTERED INDEX IX_BatchJobItems_RequiresReview
-    ON DaQa.BatchJobItems(RequiresHumanReview, Status)
+    ON DaQa.BatchJobItems(BatchId, RequiresHumanReview, Status)
     WHERE RequiresHumanReview = 1
     INCLUDE (ItemId, ObjectName, ConfidenceScore)
 GO
@@ -190,19 +255,7 @@ CREATE NONCLUSTERED INDEX IX_BatchJobs_StartedAt
     INCLUDE (BatchId, SourceType, Status, TotalItems)
 GO
 
--- =============================================
--- COMPUTED COLUMNS (optional)
--- =============================================
-
--- Add computed column for progress percentage
-ALTER TABLE DaQa.BatchJobs
-ADD ProgressPercentage AS (
-    CASE
-        WHEN TotalItems > 0
-        THEN CAST(ProcessedCount AS FLOAT) / TotalItems * 100
-        ELSE 0
-    END
-)
+PRINT 'Indexes created successfully'
 GO
 
 -- =============================================
@@ -210,7 +263,7 @@ GO
 -- =============================================
 
 -- View for batch job summary
-CREATE OR ALTER VIEW DaQa.vw_BatchJobSummary
+CREATE VIEW DaQa.vw_BatchJobSummary
 AS
 SELECT
     bj.BatchId,
@@ -234,7 +287,7 @@ SELECT
     bj.CompletedAt,
     bj.DurationSeconds,
     CASE
-        WHEN bj.Status = 'Processing' AND bj.ProcessedCount > 0 THEN
+        WHEN bj.Status = 'Processing' AND bj.ProcessedCount > 0 AND bj.TotalItems > 0 THEN
             (bj.DurationSeconds / bj.ProcessedCount) * (bj.TotalItems - bj.ProcessedCount)
         ELSE NULL
     END AS EstimatedTimeRemainingSeconds,
@@ -252,8 +305,11 @@ SELECT
 FROM DaQa.BatchJobs bj
 GO
 
+PRINT 'vw_BatchJobSummary created successfully'
+GO
+
 -- View for items requiring review
-CREATE OR ALTER VIEW DaQa.vw_ItemsRequiringReview
+CREATE VIEW DaQa.vw_ItemsRequiringReview
 AS
 SELECT
     bi.ItemId,
@@ -281,8 +337,11 @@ WHERE bi.RequiresHumanReview = 1
   AND bi.Status = 'ValidationRequired'
 GO
 
+PRINT 'vw_ItemsRequiringReview created successfully'
+GO
+
 -- View for batch processing metrics
-CREATE OR ALTER VIEW DaQa.vw_BatchProcessingMetrics
+CREATE VIEW DaQa.vw_BatchProcessingMetrics
 AS
 SELECT
     SourceType,
@@ -300,8 +359,11 @@ FROM DaQa.BatchJobs
 GROUP BY SourceType
 GO
 
+PRINT 'vw_BatchProcessingMetrics created successfully'
+GO
+
 -- View for confidence distribution
-CREATE OR ALTER VIEW DaQa.vw_ConfidenceDistribution
+CREATE VIEW DaQa.vw_ConfidenceDistribution
 AS
 SELECT
     bj.BatchId,
@@ -329,8 +391,11 @@ SELECT
 FROM DaQa.BatchJobs bj
 GO
 
+PRINT 'vw_ConfidenceDistribution created successfully'
+GO
+
 -- View for vector indexing status
-CREATE OR ALTER VIEW DaQa.vw_VectorIndexingStatus
+CREATE VIEW DaQa.vw_VectorIndexingStatus
 AS
 SELECT
     bj.BatchId,
@@ -349,7 +414,16 @@ SELECT
     SUM(CASE WHEN bi.VectorId IS NOT NULL THEN 1 ELSE 0 END) AS ItemsWithVectorId
 FROM DaQa.BatchJobs bj
 LEFT JOIN DaQa.BatchJobItems bi ON bj.BatchId = bi.BatchId
-GROUP BY bj.BatchId, bj.SourceType, bj.Status, bj.TotalItems, bj.VectorIndexedCount, bj.VectorIndexFailedCount
+GROUP BY
+    bj.BatchId,
+    bj.SourceType,
+    bj.Status,
+    bj.TotalItems,
+    bj.VectorIndexedCount,
+    bj.VectorIndexFailedCount
+GO
+
+PRINT 'vw_VectorIndexingStatus created successfully'
 GO
 
 -- =============================================
@@ -357,7 +431,7 @@ GO
 -- =============================================
 
 -- Get batch status with detailed progress
-CREATE OR ALTER PROCEDURE DaQa.usp_GetBatchStatus
+CREATE PROCEDURE DaQa.usp_GetBatchStatus
     @BatchId UNIQUEIDENTIFIER
 AS
 BEGIN
@@ -389,8 +463,11 @@ BEGIN
 END
 GO
 
+PRINT 'usp_GetBatchStatus created successfully'
+GO
+
 -- Get items requiring human review
-CREATE OR ALTER PROCEDURE DaQa.usp_GetItemsRequiringReview
+CREATE PROCEDURE DaQa.usp_GetItemsRequiringReview
     @BatchId UNIQUEIDENTIFIER = NULL,
     @TopN INT = 100
 AS
@@ -404,8 +481,11 @@ BEGIN
 END
 GO
 
+PRINT 'usp_GetItemsRequiringReview created successfully'
+GO
+
 -- Approve items for processing
-CREATE OR ALTER PROCEDURE DaQa.usp_ApproveItems
+CREATE PROCEDURE DaQa.usp_ApproveItems
     @ItemIds NVARCHAR(MAX), -- Comma-separated GUIDs
     @ReviewedBy NVARCHAR(200)
 AS
@@ -427,8 +507,11 @@ BEGIN
 END
 GO
 
+PRINT 'usp_ApproveItems created successfully'
+GO
+
 -- Reject items with feedback
-CREATE OR ALTER PROCEDURE DaQa.usp_RejectItems
+CREATE PROCEDURE DaQa.usp_RejectItems
     @ItemIds NVARCHAR(MAX), -- Comma-separated GUIDs
     @Reason NVARCHAR(MAX),
     @ReviewedBy NVARCHAR(200)
@@ -452,8 +535,11 @@ BEGIN
 END
 GO
 
+PRINT 'usp_RejectItems created successfully'
+GO
+
 -- Cancel batch job
-CREATE OR ALTER PROCEDURE DaQa.usp_CancelBatch
+CREATE PROCEDURE DaQa.usp_CancelBatch
     @BatchId UNIQUEIDENTIFIER
 AS
 BEGIN
@@ -477,33 +563,17 @@ BEGIN
 END
 GO
 
--- =============================================
--- SAMPLE DATA (for testing)
--- =============================================
-
-/*
--- Example: Insert a test batch job
-INSERT INTO DaQa.BatchJobs (BatchId, SourceType, DatabaseName, SchemaName, Status, TotalItems, CreatedBy)
-VALUES (NEWID(), 'DatabaseSchema', 'IRFS1', 'gwpc', 'Pending', 50, 'TestUser');
-
--- Example: Query batch status
-EXEC DaQa.usp_GetBatchStatus @BatchId = '<BatchId>';
-
--- Example: Get items requiring review
-EXEC DaQa.usp_GetItemsRequiringReview @TopN = 10;
-*/
+PRINT 'usp_CancelBatch created successfully'
+GO
 
 -- =============================================
--- CLEANUP (uncomment to enable)
+-- SUMMARY
 -- =============================================
 
-/*
--- Clear all batch data
-TRUNCATE TABLE DaQa.BatchJobItems;
-DELETE FROM DaQa.BatchJobs;
-*/
-
+PRINT ''
+PRINT '============================================================================'
 PRINT 'Batch processing tables created successfully'
+PRINT '============================================================================'
 PRINT ''
 PRINT 'Tables:'
 PRINT '  - DaQa.BatchJobs'
@@ -522,4 +592,9 @@ PRINT '  - DaQa.usp_GetItemsRequiringReview'
 PRINT '  - DaQa.usp_ApproveItems'
 PRINT '  - DaQa.usp_RejectItems'
 PRINT '  - DaQa.usp_CancelBatch'
+PRINT ''
+PRINT 'Note: Hangfire will also create its tables in the DaQa schema'
+PRINT '      Configure in HangfireConfiguration.cs with SchemaName = "DaQa"'
+PRINT ''
+PRINT '============================================================================'
 GO

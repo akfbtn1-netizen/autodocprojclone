@@ -42,8 +42,8 @@ public static class HangfireConfiguration
                 // Enable distributed locks
                 PrepareSchemaIfNecessary = true,
 
-                // Configure schema
-                SchemaName = "Hangfire",
+                // Configure schema - MUST use DaQa schema (only schema with write permissions)
+                SchemaName = "DaQa",
 
                 // Performance optimization
                 InvisibilityTimeout = TimeSpan.FromMinutes(30),
