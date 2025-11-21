@@ -3,20 +3,24 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 using Dapper;
 using OfficeOpenXml;
 using Enterprise.Documentation.Core.Domain.Models;
+using Enterprise.Documentation.Core.Application.Services.DocumentGeneration;
 
 namespace Enterprise.Documentation.Core.Application.Services.ExcelSync;
 
 /// <summary>
 /// Background service that syncs data from the BI Analytics Change Spreadsheet to SQL.
 /// Monitors the Excel file and automatically syncs changes.
+/// Auto-generates drafts for completed entries.
 /// </summary>
 public class ExcelToSqlSyncService : BackgroundService
 {
     private readonly ILogger<ExcelToSqlSyncService> _logger;
     private readonly IConfiguration _configuration;
+    private readonly IServiceProvider _serviceProvider;
     private readonly string _connectionString;
     private readonly string _excelFilePath;
     private readonly int _syncIntervalSeconds;
@@ -24,10 +28,12 @@ public class ExcelToSqlSyncService : BackgroundService
 
     public ExcelToSqlSyncService(
         ILogger<ExcelToSqlSyncService> logger,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IServiceProvider serviceProvider)
     {
         _logger = logger;
         _configuration = configuration;
+        _serviceProvider = serviceProvider;
         _connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("DefaultConnection not configured");
         _excelFilePath = configuration["ExcelSync:LocalFilePath"]
@@ -108,6 +114,9 @@ public class ExcelToSqlSyncService : BackgroundService
             var (inserted, updated, skipped) = await UpsertEntriesAsync(entries, cancellationToken);
             _logger.LogInformation("Sync complete. Inserted: {Inserted}, Updated: {Updated}, Skipped: {Skipped}",
                 inserted, updated, skipped);
+
+            // Process completed entries for auto-draft generation
+            await ProcessCompletedEntriesAsync(entries, cancellationToken);
         }
         catch (IOException ex) when (ex.Message.Contains("being used by another process"))
         {
@@ -116,6 +125,153 @@ public class ExcelToSqlSyncService : BackgroundService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error during Excel-to-SQL sync");
+        }
+    }
+
+    private async Task ProcessCompletedEntriesAsync(List<DocumentChangeEntry> entries, CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Find entries with Status="Completed" and no DocId
+            var completedWithoutDocId = entries
+                .Where(e => string.Equals(e.Status, "Completed", StringComparison.OrdinalIgnoreCase)
+                         && string.IsNullOrWhiteSpace(e.DocId))
+                .ToList();
+
+            if (completedWithoutDocId.Count == 0)
+            {
+                _logger.LogDebug("No completed entries without DocId found");
+                return;
+            }
+
+            _logger.LogInformation("Found {Count} completed entries without DocId, creating drafts", completedWithoutDocId.Count);
+
+            // Create scoped service provider for auto-draft service
+            using var scope = _serviceProvider.CreateScope();
+            var autoDraftService = scope.ServiceProvider.GetRequiredService<IAutoDraftService>();
+
+            var draftsCreated = 0;
+            var draftsFailed = 0;
+
+            foreach (var entry in completedWithoutDocId)
+            {
+                try
+                {
+                    _logger.LogInformation("Creating draft for CAB {CABNumber}, Jira {JiraNumber}",
+                        entry.CABNumber, entry.JiraNumber);
+
+                    var result = await autoDraftService.CreateDraftForCompletedEntryAsync(entry, cancellationToken);
+
+                    if (result.Success)
+                    {
+                        // Update Excel with generated DocId
+                        await UpdateExcelWithDocIdAsync(entry.ExcelRowNumber, result.DocId, cancellationToken);
+
+                        // Update database with DocId
+                        await UpdateDatabaseWithDocIdAsync(entry.CABNumber, entry.JiraNumber, result.DocId, cancellationToken);
+
+                        draftsCreated++;
+                        _logger.LogInformation("Draft created successfully: {DocId} at {FilePath}",
+                            result.DocId, result.FilePath);
+                    }
+                    else
+                    {
+                        draftsFailed++;
+                        _logger.LogWarning("Failed to create draft for CAB {CABNumber}: {ErrorMessage}",
+                            entry.CABNumber, result.ErrorMessage);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    draftsFailed++;
+                    _logger.LogError(ex, "Error creating draft for CAB {CABNumber}", entry.CABNumber);
+                }
+            }
+
+            _logger.LogInformation("Draft creation complete. Created: {Created}, Failed: {Failed}",
+                draftsCreated, draftsFailed);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing completed entries for auto-draft");
+        }
+    }
+
+    private async Task UpdateExcelWithDocIdAsync(int rowNumber, string? docId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(docId))
+        {
+            return;
+        }
+
+        try
+        {
+            await using var stream = new FileStream(_excelFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            using var package = new ExcelPackage(stream);
+
+            var worksheet = package.Workbook.Worksheets.FirstOrDefault();
+            if (worksheet == null)
+            {
+                _logger.LogWarning("No worksheet found in Excel file for DocId update");
+                return;
+            }
+
+            // Find DocId column (assuming it's one of the columns, need to find it in header row)
+            int docIdColumn = -1;
+            for (int col = 1; col <= worksheet.Dimension.End.Column; col++)
+            {
+                var header = worksheet.Cells[3, col].Text?.Trim(); // Row 3 is headers
+                if (string.Equals(header, "DocId", StringComparison.OrdinalIgnoreCase))
+                {
+                    docIdColumn = col;
+                    break;
+                }
+            }
+
+            if (docIdColumn == -1)
+            {
+                _logger.LogWarning("DocId column not found in Excel file");
+                return;
+            }
+
+            // Update the cell
+            worksheet.Cells[rowNumber, docIdColumn].Value = docId;
+            await package.SaveAsync(cancellationToken);
+
+            _logger.LogInformation("Updated Excel row {RowNumber} with DocId: {DocId}", rowNumber, docId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating Excel with DocId for row {RowNumber}", rowNumber);
+        }
+    }
+
+    private async Task UpdateDatabaseWithDocIdAsync(string? cabNumber, string? jiraNumber, string? docId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(docId))
+        {
+            return;
+        }
+
+        try
+        {
+            await using var connection = new SqlConnection(_connectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            var sql = @"
+                UPDATE daqa.DocumentChanges
+                SET DocId = @DocId,
+                    LastSyncedFromExcel = GETUTCDATE()
+                WHERE CABNumber = @CABNumber
+                  AND JiraNumber = @JiraNumber";
+
+            await connection.ExecuteAsync(sql, new { DocId = docId, CABNumber = cabNumber, JiraNumber = jiraNumber });
+
+            _logger.LogDebug("Updated database with DocId {DocId} for CAB {CABNumber}", docId, cabNumber);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating database with DocId for CAB {CABNumber}", cabNumber);
         }
     }
 
