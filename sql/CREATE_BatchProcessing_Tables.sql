@@ -210,28 +210,25 @@ CREATE NONCLUSTERED INDEX IX_BatchJobItems_BatchId
     INCLUDE (ObjectName, Status, ConfidenceScore, RequiresHumanReview)
 GO
 
--- Find items requiring review
+-- Find items requiring review (removed WHERE clause for permissions)
 CREATE NONCLUSTERED INDEX IX_BatchJobItems_RequiresReview
     ON DaQa.BatchJobItems(BatchId, RequiresHumanReview, Status)
-    WHERE RequiresHumanReview = 1
     INCLUDE (ItemId, ObjectName, ConfidenceScore)
 GO
 
--- Query by generated DocId
+-- Query by generated DocId (removed WHERE clause for permissions)
 CREATE NONCLUSTERED INDEX IX_BatchJobItems_GeneratedDocId
     ON DaQa.BatchJobItems(GeneratedDocId)
-    WHERE GeneratedDocId IS NOT NULL
     INCLUDE (ItemId, ObjectName, Status)
 GO
 
--- Query by MasterIndex linkage
+-- Query by MasterIndex linkage (removed WHERE clause for permissions)
 CREATE NONCLUSTERED INDEX IX_BatchJobItems_MasterIndexId
     ON DaQa.BatchJobItems(MasterIndexId)
-    WHERE MasterIndexId IS NOT NULL
     INCLUDE (ItemId, GeneratedDocId)
 GO
 
--- Query by vector indexing status
+-- Query by vector indexing status (removed WHERE clause for permissions)
 CREATE NONCLUSTERED INDEX IX_BatchJobItems_VectorIndexed
     ON DaQa.BatchJobItems(IsVectorIndexed)
     INCLUDE (VectorId, GeneratedDocId)
