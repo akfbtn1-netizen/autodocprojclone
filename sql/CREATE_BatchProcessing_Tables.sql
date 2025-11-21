@@ -189,15 +189,14 @@ CREATE TABLE DaQa.BatchJobItems
     ModifiedAt DATETIME2 NULL,
 
     -- Primary Key Constraint
-    CONSTRAINT PK_BatchJobItems PRIMARY KEY CLUSTERED (ItemId),
+    CONSTRAINT PK_BatchJobItems PRIMARY KEY CLUSTERED (ItemId)
 
-    -- Foreign Key Constraint
-    CONSTRAINT FK_BatchJobItems_BatchJobs FOREIGN KEY (BatchId)
-        REFERENCES DaQa.BatchJobs(BatchId) ON DELETE CASCADE
+    -- Note: Foreign key constraint removed due to REFERENCES permission restrictions
+    -- Application layer will ensure referential integrity instead
 )
 GO
 
-PRINT 'BatchJobItems table created successfully'
+PRINT 'BatchJobItems table created successfully (without FK constraint - limited permissions)'
 GO
 
 -- =============================================
