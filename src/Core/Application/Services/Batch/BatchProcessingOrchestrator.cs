@@ -838,7 +838,7 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
         {
             Table = $"{metadata.SchemaName}.{metadata.TableName}",
             Column = metadata.ColumnName,
-            ChangeType = metadata.ObjectName // DocumentType property does not exist ?? "Enhancement",
+            ChangeType = metadata.ObjectName ?? "Enhancement",
             Description = metadata.Description,
             Documentation = metadata.EnhancedDescription ?? metadata.Documentation,
             JiraNumber = metadata.JiraNumber,
@@ -851,17 +851,17 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
         return new MasterIndexEntry
         {
             SourceDocumentID = docId,
-            DocumentTitle = metadata.ObjectName // DocumentTitle property does not exist,
-            DocumentType = metadata.ObjectName // DocumentType property does not exist,
+            DocumentTitle = metadata.ObjectName,
+            DocumentType = metadata.ObjectName,
             Description = metadata.EnhancedDescription ?? metadata.Description,
             SchemaName = metadata.SchemaName,
             TableName = metadata.TableName,
             ColumnName = metadata.ColumnName,
-            DataType = metadata.ObjectType // DataType property does not exist,
-            BusinessOwner = string.Empty // BusinessOwner property does not exist,
-            TechnicalOwner = string.Empty // TechnicalOwner property does not exist,
-            Keywords = System.Text.Json.JsonSerializer.Serialize(new string[0] // Keywords property does not exist),
-            Tags = System.Text.Json.JsonSerializer.Serialize(new string[0] // Tags property does not exist),
+            DataType = metadata.ObjectType,
+            BusinessOwner = string.Empty,
+            TechnicalOwner = string.Empty,
+            Keywords = System.Text.Json.JsonSerializer.Serialize(new string[0]),
+            Tags = System.Text.Json.JsonSerializer.Serialize(new string[0]),
             AIGeneratedTags = System.Text.Json.JsonSerializer.Serialize(metadata.AIGeneratedTags),
             QualityScore = CalculateQualityScore(metadata),
             CompletenessScore = CalculateCompletenessScore(metadata),
@@ -890,11 +890,11 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
             !string.IsNullOrEmpty(metadata.Description),
             !string.IsNullOrEmpty(metadata.SchemaName),
             !string.IsNullOrEmpty(metadata.TableName),
-            !string.IsNullOrEmpty(metadata.ObjectName // DocumentType property does not exist),
-            new string[0] // Keywords property does not exist?.Any() == true,
-            new string[0] // Tags property does not exist?.Any() == true,
-            !string.IsNullOrEmpty(string.Empty // BusinessOwner property does not exist),
-            !string.IsNullOrEmpty(string.Empty // TechnicalOwner property does not exist)
+            !string.IsNullOrEmpty(metadata.ObjectName),
+            false, // Keywords - not available
+            false, // Tags - not available
+            false, // BusinessOwner - not available
+            false  // TechnicalOwner - not available
         };
 
         return (int)((fields.Count(f => f) / (double)fields.Length) * 100);
