@@ -2,6 +2,8 @@ using Enterprise.Documentation.Core.Governance;
 using Enterprise.Documentation.Core.Infrastructure.Extensions;
 using Enterprise.Documentation.Core.Application.Interfaces;
 using Enterprise.Documentation.Core.Application.Services.ExcelSync;
+using Enterprise.Documentation.Core.Infrastructure.Services.ExcelSync;
+using Enterprise.Documentation.Core.Infrastructure.Services.Notifications;
 using Enterprise.Documentation.Api.Services;
 using FluentValidation;
 using System.Diagnostics;

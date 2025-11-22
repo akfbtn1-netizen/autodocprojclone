@@ -3,17 +3,9 @@ using Microsoft.Extensions.Logging;
 using OfficeOpenXml;
 using Dapper;
 using Microsoft.Data.SqlClient;
+using Enterprise.Documentation.Core.Application.Services.ExcelSync;
 
-namespace Enterprise.Documentation.Core.Application.Services.ExcelSync;
-
-/// <summary>
-/// Updates Excel spreadsheet with DocId and DocumentationLink
-/// </summary>
-public interface IExcelUpdateService
-{
-    Task UpdateDocIdAsync(string cabNumber, string docId, CancellationToken cancellationToken = default);
-    Task UpdateDocumentationLinkAsync(string docId, string sharePointUrl, CancellationToken cancellationToken = default);
-}
+namespace Enterprise.Documentation.Core.Infrastructure.Services.ExcelSync;
 
 public class ExcelUpdateService : IExcelUpdateService
 {

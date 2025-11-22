@@ -8,15 +8,16 @@ using Dapper;
 using OfficeOpenXml;
 using Enterprise.Documentation.Core.Domain.Models;
 using Enterprise.Documentation.Core.Application.Services.DocumentGeneration;
+using Enterprise.Documentation.Core.Application.Services.ExcelSync;
 
-namespace Enterprise.Documentation.Core.Application.Services.ExcelSync;
+namespace Enterprise.Documentation.Core.Infrastructure.Services.ExcelSync;
 
 /// <summary>
 /// Background service that syncs data from the BI Analytics Change Spreadsheet to SQL.
 /// Monitors the Excel file and automatically syncs changes.
 /// Auto-generates drafts for completed entries.
 /// </summary>
-public class ExcelToSqlSyncService : BackgroundService
+public class ExcelToSqlSyncService : BackgroundService, IExcelToSqlSyncService
 {
     private readonly ILogger<ExcelToSqlSyncService> _logger;
     private readonly IConfiguration _configuration;

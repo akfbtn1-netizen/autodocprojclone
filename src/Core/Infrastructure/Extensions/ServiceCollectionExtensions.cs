@@ -4,6 +4,18 @@ using Microsoft.Extensions.DependencyInjection;
 using Enterprise.Documentation.Core.Infrastructure.Persistence;
 using Enterprise.Documentation.Core.Application.Interfaces;
 using Enterprise.Documentation.Core.Infrastructure.Persistence.Repositories;
+using Enterprise.Documentation.Core.Application.Services.MasterIndex;
+using Enterprise.Documentation.Core.Application.Services.ExcelSync;
+using Enterprise.Documentation.Core.Application.Services.MetadataExtraction;
+using Enterprise.Documentation.Core.Application.Services.DocumentGeneration;
+using Enterprise.Documentation.Core.Application.Services.Notifications;
+using Enterprise.Documentation.Core.Application.Services.VectorIndexing;
+using Enterprise.Documentation.Core.Infrastructure.Services.MasterIndex;
+using Enterprise.Documentation.Core.Infrastructure.Services.ExcelSync;
+using Enterprise.Documentation.Core.Infrastructure.Services.MetadataExtraction;
+using Enterprise.Documentation.Core.Infrastructure.Services.DocumentGeneration;
+using Enterprise.Documentation.Core.Infrastructure.Services.Notifications;
+using Enterprise.Documentation.Core.Infrastructure.Services.VectorIndexing;
 
 namespace Enterprise.Documentation.Core.Infrastructure.Extensions;
 
@@ -22,6 +34,30 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddPersistence(configuration);
+        services.AddInfrastructureServices(configuration);
+        return services;
+    }
+
+    /// <summary>
+    /// Adds all infrastructure service implementations
+    /// </summary>
+    private static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
+    {
+        // HttpClient for API services
+        services.AddHttpClient<IOpenAIEnhancementService, OpenAIEnhancementService>();
+        services.AddHttpClient<ITeamsNotificationService, TeamsNotificationService>();
+        services.AddHttpClient<IVectorIndexingService, VectorIndexingService>();
+
+        // Service registrations
+        services.AddScoped<IMasterIndexService, MasterIndexService>();
+        services.AddScoped<IExcelToSqlSyncService, ExcelToSqlSyncService>();
+        services.AddScoped<IMetadataExtractionService, MetadataExtractionService>();
+        services.AddScoped<IExcelUpdateService, ExcelUpdateService>();
+
+        // Background services (conditionally registered in Program.cs if needed)
+        // services.AddHostedService<ExcelToSqlSyncService>();  // Register in Program.cs
+        // services.AddHostedService<NotificationBatchingService>();  // Register in Program.cs
+
         return services;
     }
 

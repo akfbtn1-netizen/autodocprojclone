@@ -2,7 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Enterprise.Documentation.Core.Application.Services.Notifications;
+namespace Enterprise.Documentation.Core.Infrastructure.Services.Notifications;
 
 /// <summary>
 /// Background service that periodically sends batched Teams notifications

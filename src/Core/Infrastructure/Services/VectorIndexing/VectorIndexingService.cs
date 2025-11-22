@@ -10,7 +10,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
-namespace Enterprise.Documentation.Core.Application.Services.VectorIndexing;
+using Enterprise.Documentation.Core.Application.Services.VectorIndexing;
+
+namespace Enterprise.Documentation.Core.Infrastructure.Services.VectorIndexing;
 
 /// <summary>
 /// Vector indexing service implementation with OpenAI embeddings

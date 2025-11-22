@@ -9,12 +9,13 @@ using System.Threading.Tasks;
 using Dapper;
 using DocumentFormat.OpenXml.Packaging;
 using Enterprise.Documentation.Core.Application.Services.DocumentGeneration;
+using Enterprise.Documentation.Core.Application.Services.MetadataExtraction;
 using Enterprise.Documentation.Core.Domain.Entities;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
-namespace Enterprise.Documentation.Core.Application.Services.MetadataExtraction;
+namespace Enterprise.Documentation.Core.Infrastructure.Services.MetadataExtraction;
 
 public class MetadataExtractionService : IMetadataExtractionService
 {
