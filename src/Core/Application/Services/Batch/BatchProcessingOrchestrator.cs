@@ -512,7 +512,7 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
 
             // Update item
             item.RequiresHumanReview = false;
-            item.ReviewedBy = reviewedBy.ToString();
+            item.ReviewedBy = reviewedBy;
             item.ReviewedAt = DateTime.UtcNow;
             item.Status = BatchItemStatus.Approved;
 
