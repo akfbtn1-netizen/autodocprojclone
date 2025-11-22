@@ -68,6 +68,10 @@
     <!-- Web API -->
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="8.0.21" />
     <PackageVersion Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    <!-- Background Jobs -->
+    <PackageVersion Include="Hangfire.Core" Version="1.8.14" />
+    <PackageVersion Include="Hangfire.AspNetCore" Version="1.8.14" />
+    <PackageVersion Include="Hangfire.SqlServer" Version="1.8.14" />
     <!-- Testing -->
     <PackageVersion Include="xunit" Version="2.9.0" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
