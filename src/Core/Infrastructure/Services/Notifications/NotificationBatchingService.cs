@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Enterprise.Documentation.Core.Application.Services.Notifications;
 
 namespace Enterprise.Documentation.Core.Infrastructure.Services.Notifications;
 
