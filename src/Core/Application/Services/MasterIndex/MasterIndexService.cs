@@ -82,7 +82,7 @@ public class MasterIndexService : IMasterIndexService
             var (qualityScore, completenessScore, metadataCompleteness) = CalculateQualityScores(entry);
 
             // Parse stored procedures list
-            var storedProceduresJson = ParseStoredProcedures(entry.ModifiedObjects);
+            var storedProceduresJson = ParseStoredProcedures(entry.ModifiedStoredProcedures);
 
             // Build keywords from description and AI tags
             var keywords = BuildKeywords(entry);
@@ -326,7 +326,7 @@ public class MasterIndexService : IMasterIndexService
         totalFields += 8;
         if (!string.IsNullOrWhiteSpace(entry.JiraNumber)) completedFields++;
         if (!string.IsNullOrWhiteSpace(entry.Column)) completedFields++;
-        if (!string.IsNullOrWhiteSpace(entry.ModifiedObjects)) completedFields++;
+        if (!string.IsNullOrWhiteSpace(entry.ModifiedStoredProcedures)) completedFields++;
         if (!string.IsNullOrWhiteSpace(entry.EnhancedDescription)) completedFields++;
         if (entry.AIGeneratedTags?.Any() == true) completedFields++;
         if (!string.IsNullOrWhiteSpace(entry.Priority)) completedFields++;
@@ -348,7 +348,7 @@ public class MasterIndexService : IMasterIndexService
         if (!string.IsNullOrWhiteSpace(entry.ReportedBy)) completedMetadata++;
         if (!string.IsNullOrWhiteSpace(entry.AssignedTo)) completedMetadata++;
         if (!string.IsNullOrWhiteSpace(entry.ChangeType)) completedMetadata++;
-        if (!string.IsNullOrWhiteSpace(entry.ModifiedObjects)) completedMetadata++;
+        if (!string.IsNullOrWhiteSpace(entry.ModifiedStoredProcedures)) completedMetadata++;
         if (entry.AIGeneratedTags?.Any() == true) completedMetadata++;
 
         var metadataCompleteness = (int)Math.Round((double)completedMetadata / metadataFields * 100);

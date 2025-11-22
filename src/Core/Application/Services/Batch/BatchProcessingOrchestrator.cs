@@ -79,7 +79,7 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
             SchemaName = schema,
             Status = BatchJobStatus.Pending,
             StartedAt = DateTime.UtcNow,
-            CreatedBy = userId.ToString(),
+            CreatedBy = userId,
             Options = options
         };
 
@@ -140,7 +140,7 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
             SourcePath = folderPath,
             Status = BatchJobStatus.Pending,
             StartedAt = DateTime.UtcNow,
-            CreatedBy = userId.ToString(),
+            CreatedBy = userId,
             Options = options
         };
 
@@ -205,7 +205,7 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
             SourcePath = excelFilePath,
             Status = BatchJobStatus.Pending,
             StartedAt = DateTime.UtcNow,
-            CreatedBy = userId.ToString(),
+            CreatedBy = userId,
             Options = options
         };
 

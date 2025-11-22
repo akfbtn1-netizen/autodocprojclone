@@ -24,7 +24,7 @@ public class NotificationBatchingService : BackgroundService
         _teamsNotificationService = teamsNotificationService;
 
         // Check for batched notifications every hour
-        var intervalMinutes = configuration.GetSection("Teams:BatchCheckIntervalMinutes").Get<int>() ?? 60;
+        var intervalMinutes = configuration.GetValue<int>("Teams:BatchCheckIntervalMinutes", 60);
         _checkInterval = TimeSpan.FromMinutes(intervalMinutes);
     }
 

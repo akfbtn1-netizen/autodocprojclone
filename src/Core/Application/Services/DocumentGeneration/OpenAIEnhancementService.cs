@@ -154,7 +154,7 @@ Output format should be JSON:
 - Jira Ticket: {request.JiraNumber}
 - Table: {request.Table ?? "Not specified"}
 - Column: {request.Column ?? "Not specified"}
-- Modified Stored Procedures: {request.ModifiedObjects ?? "None specified"}
+- Modified Stored Procedures: {request.ModifiedStoredProcedures ?? "None specified"}
 
 Please enhance this documentation following the rules. Return ONLY valid JSON.";
 
@@ -194,9 +194,9 @@ Please enhance this documentation following the rules. Return ONLY valid JSON.";
             EnhancedDescription = request.Description,
             EnhancedImplementation = request.Documentation,
             KeyPoints = new List<string> { request.Description },
-            TechnicalDetails = string.IsNullOrWhiteSpace(request.ModifiedObjects)
+            TechnicalDetails = string.IsNullOrWhiteSpace(request.ModifiedStoredProcedures)
                 ? new List<string>()
-                : request.ModifiedObjects.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                : request.ModifiedStoredProcedures.Split(',', StringSplitOptions.RemoveEmptyEntries)
                     .Select(sp => sp.Trim())
                     .ToList()
         };
