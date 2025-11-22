@@ -50,8 +50,7 @@ public static class HangfireConfiguration
                 SchemaName = "DaQa",
 
                 // Performance optimization
-                InvisibilityTimeout = TimeSpan.FromMinutes(30),
-                DeleteExpiredBatchesInterval = TimeSpan.FromHours(12)
+                InvisibilityTimeout = TimeSpan.FromMinutes(30)
             }));
 
         // Add Hangfire processing server
