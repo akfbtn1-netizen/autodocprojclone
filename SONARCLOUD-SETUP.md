@@ -3,6 +3,8 @@
 ## Overview
 This guide explains the enhanced SonarCloud setup for strict code quality analysis with full coverage reporting.
 
+**✅ Works with FREE SonarCloud tier** - This setup uses custom quality enforcement via GitHub Actions, so you don't need a paid SonarCloud plan to enforce strict quality standards.
+
 ## What Was Fixed
 
 ### 1. Coverage Collection
@@ -27,9 +29,110 @@ This guide explains the enhanced SonarCloud setup for strict code quality analys
 ### 3. Quality Gate
 **Problem**: Using the basic "Sonar way" quality gate (too lenient).
 
-**Solution**: Created stricter quality settings in `sonar-project.properties` and need to configure custom quality gate in SonarCloud UI (see below).
+**Solution**: Created custom quality enforcement script (`.github/scripts/enforce-quality-gate.ps1`) that runs after SonarCloud analysis and enforces strict standards via the SonarCloud API. **Works with free tier!**
 
-## Setting Up Strict Quality Gate in SonarCloud
+#### How It Works:
+1. SonarCloud analyzes code using the standard "Sonar way" quality gate
+2. Our custom PowerShell script fetches metrics from SonarCloud API
+3. Script applies YOUR strict thresholds (configurable in the script)
+4. Build fails if metrics don't meet your standards
+5. No paid SonarCloud plan needed!
+
+## Customizing Quality Standards (Free Tier)
+
+Our custom quality enforcement script (`.github/scripts/enforce-quality-gate.ps1`) enforces these strict standards by default:
+
+### Current Thresholds
+
+**Coverage:**
+- Overall code: **≥ 80%** (fails if below)
+- New code: **≥ 85%** (fails if below)
+
+**Code Duplication:**
+- Overall code: **≤ 3%** duplicated lines (fails if above)
+- New code: **≤ 2%** duplicated lines (fails if above)
+
+**Critical Issues:**
+- New blocker issues: **0** (fails if any found)
+- New critical issues: **0** (fails if any found)
+- New major issues: **≤ 5** (fails if more than 5)
+
+**Code Smells:**
+- New code smells: **≤ 10** (warning if more than 10)
+
+**Ratings (must be "A"):**
+- Maintainability rating
+- Reliability rating
+- Security rating
+
+### How to Adjust Thresholds
+
+Edit `.github/scripts/enforce-quality-gate.ps1` lines 40-63:
+
+```powershell
+$thresholds = @{
+    "coverage" = @{
+        "overall_min" = 80.0    # Change to 70.0 for more lenient
+        "new_code_min" = 85.0   # Change to 75.0 for more lenient
+    }
+    "duplicated_lines_density" = @{
+        "overall_max" = 3.0     # Change to 5.0 for more lenient
+        "new_code_max" = 2.0    # Change to 3.0 for more lenient
+    }
+    "blocker_violations" = @{
+        "new_max" = 0           # Keep at 0 - blockers should always fail
+    }
+    "critical_violations" = @{
+        "new_max" = 0           # Keep at 0 or change to 1
+    }
+    "major_violations" = @{
+        "new_max" = 5           # Change to 10 for more lenient
+    }
+    "code_smells" = @{
+        "new_max" = 10          # This is a warning, not failure
+    }
+    # ... etc
+}
+```
+
+### Making Quality Gate Stricter
+
+To make quality enforcement even stricter:
+
+```powershell
+"coverage" = @{
+    "overall_min" = 90.0    # Require 90% coverage
+    "new_code_min" = 95.0   # Require 95% on new code
+}
+"critical_violations" = @{
+    "new_max" = 0
+}
+"major_violations" = @{
+    "new_max" = 0           # Zero tolerance for major issues
+}
+```
+
+### Making Quality Gate More Lenient
+
+If starting with a legacy codebase:
+
+```powershell
+"coverage" = @{
+    "overall_min" = 60.0    # Start lower
+    "new_code_min" = 70.0   # But still require coverage on new code
+}
+"major_violations" = @{
+    "new_max" = 15          # Allow more issues initially
+}
+```
+
+Then gradually increase thresholds over time as you improve code quality.
+
+## (Optional) SonarCloud UI Quality Gate Setup
+
+**Note:** This section is only for users with PAID SonarCloud plans. Free tier users should use the custom script above.
+
+If you have a paid SonarCloud plan and want to use SonarCloud's native quality gates instead of our custom script:
 
 ### Step 1: Access Quality Gates
 1. Go to https://sonarcloud.io
@@ -59,9 +162,7 @@ Name: **Enterprise Strict Quality Gate**
 - **Security Rating on New Code** worse than A → FAILED
 - **New Blocker Issues** > 0 → FAILED
 - **New Critical Issues** > 0 → FAILED
-- **New Major Issues** > 5 → FAILED (can adjust based on your tolerance)
-- **New Code Smells** > 10 → WARNING (can adjust)
-- **New Technical Debt Ratio** > 2% → WARNING
+- **New Major Issues** > 5 → FAILED
 
 ### Step 3: Apply Quality Gate to Project
 1. Go to **Projects** in SonarCloud
@@ -69,6 +170,10 @@ Name: **Enterprise Strict Quality Gate**
 3. Click **Project Settings** → **Quality Gate**
 4. Select **Enterprise Strict Quality Gate**
 5. Click **Save**
+
+### Step 4: Disable Custom Script (Optional)
+
+If using SonarCloud's native quality gate, you can remove or comment out the "Enforce strict quality gate" step from `.github/workflows/build.yml`
 
 ## Understanding the Workflow Changes
 
@@ -85,8 +190,15 @@ Name: **Enterprise Strict Quality Gate**
 8. Run unit tests with coverage
 9. Run integration tests with coverage
 10. End SonarCloud analysis (uploads results)
-11. Upload coverage artifacts
+11. Enforce strict quality gate (custom script) ⭐ NEW
+12. Upload coverage artifacts
 ```
+
+**Step 11 Explained:** This runs our custom PowerShell script that:
+- Fetches metrics from SonarCloud API
+- Compares them against your strict thresholds
+- Fails the build if standards aren't met
+- Provides detailed colored output showing what passed/failed
 
 ### Key Parameters Explained
 
@@ -288,16 +400,25 @@ sonar.issue.ignore.multicriteria.e1.resourceKey=**/*.cs
 
 ## Next Steps
 
-1. **Commit and push** the workflow changes
-2. **Create the custom quality gate** in SonarCloud UI
-3. **Test with a PR** to verify coverage and decoration work
-4. **Review the quality report** and adjust thresholds if needed
+### For Free Tier Users (Recommended):
+
+1. **✅ Already done** - Workflow changes are committed and pushed
+2. **Test with a PR** to verify coverage and custom quality gate work
+3. **Review the quality report** in the workflow output
+4. **Adjust thresholds** in `.github/scripts/enforce-quality-gate.ps1` if needed
 5. **Add SonarCloud badge** to README.md:
 
 ```markdown
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=akfbtn1-netizen_autodocprojclone&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=akfbtn1-netizen_autodocprojclone)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=akfbtn1-netizen_autodocprojclone&metric=coverage)](https://sonarcloud.io/summary/new_code?id=akfbtn1-netizen_autodocprojclone)
 ```
+
+### For Paid Plan Users (Optional):
+
+1. Create custom quality gate in SonarCloud UI (see section above)
+2. Apply quality gate to project
+3. Optionally disable custom script step in workflow
+4. Test with a PR
 
 ## Additional Resources
 

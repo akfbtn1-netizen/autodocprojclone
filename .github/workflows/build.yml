@@ -108,6 +108,28 @@ jobs:
         run: |
           ${{ runner.temp }}\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
 
+      - name: Enforce strict quality gate
+        if: always()
+        shell: powershell
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          $params = @{
+            ProjectKey = "akfbtn1-netizen_autodocprojclone"
+            SonarToken = "${{ secrets.SONAR_TOKEN }}"
+          }
+
+          # Add PR-specific parameters if this is a pull request
+          if ("${{ github.event_name }}" -eq "pull_request") {
+            $params.PullRequestKey = "${{ github.event.pull_request.number }}"
+          }
+          elseif ("${{ github.ref }}" -ne "refs/heads/main") {
+            $branchName = "${{ github.ref }}".Replace("refs/heads/", "")
+            $params.Branch = $branchName
+          }
+
+          .\.github\scripts\enforce-quality-gate.ps1 @params
+
       - name: Upload coverage reports
         if: always()
         uses: actions/upload-artifact@v4
