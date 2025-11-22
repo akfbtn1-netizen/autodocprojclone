@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
+using Enterprise.Documentation.Core.Application.Services.Batch;
 using Enterprise.Documentation.Core.Application.Services.DocumentGeneration;
 using Enterprise.Documentation.Core.Application.Services.MasterIndex;
 using Enterprise.Documentation.Core.Application.Services.MetadataExtraction;
@@ -15,7 +16,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
-namespace Enterprise.Documentation.Core.Application.Services.Batch;
+namespace Enterprise.Documentation.Core.Infrastructure.Services.Batch;
 
 /// <summary>
 /// Orchestrates batch document processing from multiple sources

@@ -10,12 +10,16 @@ using Enterprise.Documentation.Core.Application.Services.MetadataExtraction;
 using Enterprise.Documentation.Core.Application.Services.DocumentGeneration;
 using Enterprise.Documentation.Core.Application.Services.Notifications;
 using Enterprise.Documentation.Core.Application.Services.VectorIndexing;
+using Enterprise.Documentation.Core.Application.Services.ApprovalTracking;
+using Enterprise.Documentation.Core.Application.Services.Batch;
 using Enterprise.Documentation.Core.Infrastructure.Services.MasterIndex;
 using Enterprise.Documentation.Core.Infrastructure.Services.ExcelSync;
 using Enterprise.Documentation.Core.Infrastructure.Services.MetadataExtraction;
 using Enterprise.Documentation.Core.Infrastructure.Services.DocumentGeneration;
 using Enterprise.Documentation.Core.Infrastructure.Services.Notifications;
 using Enterprise.Documentation.Core.Infrastructure.Services.VectorIndexing;
+using Enterprise.Documentation.Core.Infrastructure.Services.ApprovalTracking;
+using Enterprise.Documentation.Core.Infrastructure.Services.Batch;
 
 namespace Enterprise.Documentation.Core.Infrastructure.Extensions;
 
@@ -53,6 +57,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IExcelToSqlSyncService, ExcelToSqlSyncService>();
         services.AddScoped<IMetadataExtractionService, MetadataExtractionService>();
         services.AddScoped<IExcelUpdateService, ExcelUpdateService>();
+        services.AddScoped<IApprovalTrackingService, ApprovalTrackingService>();
+        services.AddScoped<IDocIdGeneratorService, DocIdGeneratorService>();
+        services.AddScoped<IBatchProcessingOrchestrator, BatchProcessingOrchestrator>();
 
         // Background services (conditionally registered in Program.cs if needed)
         // services.AddHostedService<ExcelToSqlSyncService>();  // Register in Program.cs
