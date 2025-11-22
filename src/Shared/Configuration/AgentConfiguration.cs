@@ -63,7 +63,7 @@ public class AgentConfiguration : IAgentConfiguration
             }
 
             // Cache the result
-            if (!EqualityComparer<T>.Default.Equals(value, default))
+            if (!EqualityComparer<T>.Default.Equals(value, default) && value is not null)
             {
                 lock (_cacheLock)
                 {
