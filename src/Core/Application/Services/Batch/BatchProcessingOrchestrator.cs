@@ -848,7 +848,7 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
 
     private MasterIndexRequest CreateMasterIndexRequest(ExtractedMetadata metadata, string docId)
     {
-        return new MasterIndexRequest
+        return new MasterIndexEntry
         {
             SourceDocumentID = docId,
             DocumentTitle = metadata.ObjectName // DocumentTitle property does not exist,
