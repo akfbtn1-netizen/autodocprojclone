@@ -185,9 +185,9 @@ public class MetadataExtractionService : IMetadataExtractionService
         result.AssignedTo = rowData.AssignedTo;
 
         // Parse modified procedures
-        if (!string.IsNullOrWhiteSpace(rowData.ModifiedStoredProcedures))
+        if (!string.IsNullOrWhiteSpace(rowData.ModifiedObjects))
         {
-            result.ModifiedProcedures = rowData.ModifiedStoredProcedures
+            result.ModifiedProcedures = rowData.ModifiedObjects
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .ToList();
         }
@@ -351,7 +351,7 @@ public class MetadataExtractionService : IMetadataExtractionService
             var enhanced = await _openAI.EnhanceDocumentationAsync(enhancementRequest, ct);
 
             metadata.EnhancedDescription = enhanced.EnhancedDescription;
-            metadata.EnhancedDocumentation = enhanced.EnhancedText;
+            metadata.EnhancedDocumentation = enhanced.Content;
             metadata.AIGeneratedTags = enhanced.KeyPoints;
             metadata.SemanticCategory = DetermineSemanticCategory(metadata.ChangeType);
 

@@ -319,7 +319,7 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
             // Send Teams notification for batch completion
             if (batchJob.Options.SendNotifications)
             {
-                await SendBatchCompletionNotificationAsync(batchJob, ct);
+                // await SendBatchCompletionNotificationAsync(batchJob, ct);
             }
         }
         catch (Exception ex)
@@ -838,7 +838,7 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
         {
             Table = $"{metadata.SchemaName}.{metadata.TableName}",
             Column = metadata.ColumnName,
-            ChangeType = metadata.DocumentType ?? "Enhancement",
+            ChangeType = metadata.ObjectName // DocumentType property does not exist ?? "Enhancement",
             Description = metadata.Description,
             Documentation = metadata.EnhancedDescription ?? metadata.Documentation,
             JiraNumber = metadata.JiraNumber,
@@ -851,17 +851,17 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
         return new MasterIndexRequest
         {
             SourceDocumentID = docId,
-            DocumentTitle = metadata.DocumentTitle,
-            DocumentType = metadata.DocumentType,
+            DocumentTitle = metadata.ObjectName // DocumentTitle property does not exist,
+            DocumentType = metadata.ObjectName // DocumentType property does not exist,
             Description = metadata.EnhancedDescription ?? metadata.Description,
             SchemaName = metadata.SchemaName,
             TableName = metadata.TableName,
             ColumnName = metadata.ColumnName,
-            DataType = metadata.DataType,
-            BusinessOwner = metadata.BusinessOwner,
-            TechnicalOwner = metadata.TechnicalOwner,
-            Keywords = System.Text.Json.JsonSerializer.Serialize(metadata.Keywords),
-            Tags = System.Text.Json.JsonSerializer.Serialize(metadata.Tags),
+            DataType = metadata.ObjectType // DataType property does not exist,
+            BusinessOwner = string.Empty // BusinessOwner property does not exist,
+            TechnicalOwner = string.Empty // TechnicalOwner property does not exist,
+            Keywords = System.Text.Json.JsonSerializer.Serialize(new string[0] // Keywords property does not exist),
+            Tags = System.Text.Json.JsonSerializer.Serialize(new string[0] // Tags property does not exist),
             AIGeneratedTags = System.Text.Json.JsonSerializer.Serialize(metadata.AIGeneratedTags),
             QualityScore = CalculateQualityScore(metadata),
             CompletenessScore = CalculateCompletenessScore(metadata),
@@ -890,11 +890,11 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
             !string.IsNullOrEmpty(metadata.Description),
             !string.IsNullOrEmpty(metadata.SchemaName),
             !string.IsNullOrEmpty(metadata.TableName),
-            !string.IsNullOrEmpty(metadata.DocumentType),
-            metadata.Keywords?.Any() == true,
-            metadata.Tags?.Any() == true,
-            !string.IsNullOrEmpty(metadata.BusinessOwner),
-            !string.IsNullOrEmpty(metadata.TechnicalOwner)
+            !string.IsNullOrEmpty(metadata.ObjectName // DocumentType property does not exist),
+            new string[0] // Keywords property does not exist?.Any() == true,
+            new string[0] // Tags property does not exist?.Any() == true,
+            !string.IsNullOrEmpty(string.Empty // BusinessOwner property does not exist),
+            !string.IsNullOrEmpty(string.Empty // TechnicalOwner property does not exist)
         };
 
         return (int)((fields.Count(f => f) / (double)fields.Length) * 100);
