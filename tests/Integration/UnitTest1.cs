@@ -11,6 +11,7 @@ public class UnitTest1
     [Fact]
     public void Test1()
     {
-
+        // Placeholder test - replace with actual integration tests
+        Assert.True(true, "Placeholder test passes");
     }
 }

@@ -7,6 +7,13 @@ namespace Enterprise.Documentation.Core.Domain.ValueObjects;
 /// </summary>
 public sealed class ApprovalStatus : BaseValueObject
 {
+    // Status constants
+    private const string PendingStatus = "Pending";
+    private const string ApprovedStatus = "Approved";
+    private const string RejectedStatus = "Rejected";
+    private const string ExpiredStatus = "Expired";
+    private const string NotRequiredStatus = "NotRequired";
+
     public string Status { get; private set; } = string.Empty;
     public string? Comments { get; private set; }
     public DateTime StatusChangedAt { get; private set; }
@@ -30,7 +37,7 @@ public sealed class ApprovalStatus : BaseValueObject
     /// </summary>
     public static ApprovalStatus NotRequired()
     {
-        return new ApprovalStatus("NotRequired", null, DateTime.UtcNow, null);
+        return new ApprovalStatus(NotRequiredStatus, null, DateTime.UtcNow, null);
     }
 
     /// <summary>
@@ -38,7 +45,7 @@ public sealed class ApprovalStatus : BaseValueObject
     /// </summary>
     public static ApprovalStatus Pending(string? comments = null)
     {
-        return new ApprovalStatus("Pending", comments, DateTime.UtcNow, null);
+        return new ApprovalStatus(PendingStatus, comments, DateTime.UtcNow, null);
     }
 
     /// <summary>
@@ -49,7 +56,7 @@ public sealed class ApprovalStatus : BaseValueObject
         if (approvedBy == null)
             throw new ArgumentNullException(nameof(approvedBy));
 
-        return new ApprovalStatus("Approved", comments, DateTime.UtcNow, approvedBy);
+        return new ApprovalStatus(ApprovedStatus, comments, DateTime.UtcNow, approvedBy);
     }
 
     /// <summary>
@@ -60,7 +67,7 @@ public sealed class ApprovalStatus : BaseValueObject
         if (rejectedBy == null)
             throw new ArgumentNullException(nameof(rejectedBy));
 
-        return new ApprovalStatus("Rejected", comments, DateTime.UtcNow, rejectedBy);
+        return new ApprovalStatus(RejectedStatus, comments, DateTime.UtcNow, rejectedBy);
     }
 
     /// <summary>
@@ -68,19 +75,19 @@ public sealed class ApprovalStatus : BaseValueObject
     /// </summary>
     public static ApprovalStatus Expired(string? comments = null)
     {
-        return new ApprovalStatus("Expired", comments, DateTime.UtcNow, null);
+        return new ApprovalStatus(ExpiredStatus, comments, DateTime.UtcNow, null);
     }
 
     /// <summary>Whether the status is approved</summary>
-    public bool IsApproved => Status == "Approved";
+    public bool IsApproved => Status == ApprovedStatus;
     /// <summary>Whether the status is pending approval</summary>
-    public bool IsPending => Status == "Pending";
+    public bool IsPending => Status == PendingStatus;
     /// <summary>Whether the status is rejected</summary>
-    public bool IsRejected => Status == "Rejected";
+    public bool IsRejected => Status == RejectedStatus;
     /// <summary>Whether the status requires action</summary>
-    public bool RequiresAction => Status == "Pending";
+    public bool RequiresAction => Status == PendingStatus;
     /// <summary>Whether the status is in a terminal state</summary>
-    public bool IsTerminal => Status is "Approved" or "Rejected" or "Expired";
+    public bool IsTerminal => Status is ApprovedStatus or RejectedStatus or ExpiredStatus;
 
     /// <summary>
     /// Determines if this status can transition to the specified new status.
@@ -90,11 +97,11 @@ public sealed class ApprovalStatus : BaseValueObject
     {
         return newStatus switch
         {
-            "NotRequired" => false, // Cannot transition to NotRequired once in workflow
-            "Pending" => Status is "NotRequired" or "Rejected", // Can request approval again after rejection
-            "Approved" => Status == "Pending",
-            "Rejected" => Status == "Pending",
-            "Expired" => Status == "Pending",
+            NotRequiredStatus => false, // Cannot transition to NotRequired once in workflow
+            PendingStatus => Status is NotRequiredStatus or RejectedStatus, // Can request approval again after rejection
+            ApprovedStatus => Status == PendingStatus,
+            RejectedStatus => Status == PendingStatus,
+            ExpiredStatus => Status == PendingStatus,
             _ => false
         };
     }

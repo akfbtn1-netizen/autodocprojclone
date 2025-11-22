@@ -1,5 +1,5 @@
 using System.Threading;
-using System.Threading.Task;
+using System.Threading.Tasks;
 
 namespace Enterprise.Documentation.Core.Application.Services.DocumentGeneration;
 

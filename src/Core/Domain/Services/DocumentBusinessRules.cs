@@ -7,7 +7,7 @@ namespace Enterprise.Documentation.Core.Domain.Services;
 /// Domain service containing document business rules and permission logic
 /// Centralizes complex business rules for document operations
 /// </summary>
-public class DocumentBusinessRules
+public static class DocumentBusinessRules
 {
     /// <summary>
     /// Validates if a document state transition is allowed
