@@ -83,7 +83,7 @@ public class TeamsNotificationService : ITeamsNotificationService
             {
                 _logger.LogInformation("First draft notification detected, sending immediately");
                 _ = Task.Run(() => SendDraftBatchAsync(cancellationToken), cancellationToken);
-                return Task.CompletedTask;
+                return;
             }
 
             // If 24 hours have passed since last notification, send batch
@@ -92,7 +92,7 @@ public class TeamsNotificationService : ITeamsNotificationService
             {
                 _logger.LogInformation("24 hours elapsed since last notification, sending batch");
                 _ = Task.Run(() => SendDraftBatchAsync(cancellationToken), cancellationToken);
-                return Task.CompletedTask;
+                return;
             }
 
             _logger.LogInformation("Draft notification added to batch. Current batch size: {Count}. Next send in {Hours:F1} hours",
@@ -100,7 +100,7 @@ public class TeamsNotificationService : ITeamsNotificationService
                 24 - timeSinceLastNotification.TotalHours);
         }
 
-        return Task.CompletedTask;
+        return;
     }
 
     public async Task SendDefectCreationReminderAsync(
@@ -116,7 +116,7 @@ public class TeamsNotificationService : ITeamsNotificationService
             {
                 _logger.LogInformation("First defect reminder detected, sending immediately");
                 _ = Task.Run(() => SendDefectBatchAsync(cancellationToken), cancellationToken);
-                return Task.CompletedTask;
+                return;
             }
 
             // If 24 hours have passed since last notification, send batch
@@ -125,7 +125,7 @@ public class TeamsNotificationService : ITeamsNotificationService
             {
                 _logger.LogInformation("24 hours elapsed since last defect notification, sending batch");
                 _ = Task.Run(() => SendDefectBatchAsync(cancellationToken), cancellationToken);
-                return Task.CompletedTask;
+                return;
             }
 
             _logger.LogInformation("Defect reminder added to batch. Current batch size: {Count}. Next send in {Hours:F1} hours",
@@ -133,7 +133,7 @@ public class TeamsNotificationService : ITeamsNotificationService
                 24 - timeSinceLastNotification.TotalHours);
         }
 
-        return Task.CompletedTask;
+        return;
     }
 
     public async Task SendBatchedNotificationsAsync(CancellationToken cancellationToken = default)

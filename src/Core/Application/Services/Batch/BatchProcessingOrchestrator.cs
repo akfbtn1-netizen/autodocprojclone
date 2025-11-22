@@ -266,7 +266,7 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
             }
 
             // Update status
-            batchJob.Status = BatchJobStatus.Processing;
+            batchJob.Status = BatchJobStatus.Running;
             await UpdateBatchJobAsync(batchJob, ct);
 
             // Process items with parallelization
@@ -298,7 +298,7 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
             // Calculate final statistics
             batchJob.Status = BatchJobStatus.Completed;
             batchJob.CompletedAt = DateTime.UtcNow;
-            batchJob.Duration = stopwatch.Elapsed;
+            // Duration is computed property - calculated automatically from StartedAt and CompletedAt
             batchJob.ProcessedCount = batchJob.Items.Count;
             batchJob.SuccessCount = batchJob.Items.Count(i => i.Status == BatchItemStatus.Completed);
             batchJob.FailedCount = batchJob.Items.Count(i => i.Status == BatchItemStatus.Failed);
@@ -333,7 +333,7 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
                 batchJob.Status = BatchJobStatus.Failed;
                 batchJob.ErrorMessage = ex.Message;
                 batchJob.CompletedAt = DateTime.UtcNow;
-                batchJob.Duration = stopwatch.Elapsed;
+                // Duration is computed property - calculated automatically from StartedAt and CompletedAt
                 await UpdateBatchJobAsync(batchJob, ct);
             }
 
@@ -445,7 +445,7 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
         // Step 1: Generate document using AutoDraftService
         if (batchJob.Options.GenerateDocuments)
         {
-            item.Status = BatchItemStatus.DocumentGeneration;
+            item.Status = BatchItemStatus.Processing;
             await UpdateBatchItemAsync(item, ct);
 
             try
@@ -471,7 +471,7 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
         // Step 2: Populate MasterIndex
         if (batchJob.Options.PopulateMasterIndex && !string.IsNullOrEmpty(item.GeneratedDocId))
         {
-            item.Status = BatchItemStatus.IndexingMetadata;
+            item.Status = BatchItemStatus.MetadataExtraction;
             await UpdateBatchItemAsync(item, ct);
 
             try
@@ -1033,7 +1033,7 @@ Vector Indexed: {batchJob.VectorIndexedCount}
                     item.ObjectName,
                     item.ObjectType,
                     Status = item.Status.ToString(),
-                    item.CreatedAt,
+                    item.CreatedDate,
                     item.DocumentPath,
                     item.ExtractedMetadataJson
                 }, transaction);

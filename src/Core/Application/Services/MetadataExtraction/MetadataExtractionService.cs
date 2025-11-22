@@ -530,7 +530,7 @@ public class MetadataExtractionService : IMetadataExtractionService
     {
         // TODO: Implement advanced NER using spaCy, Azure Cognitive Services, or similar
         // For now, use regex-based extraction
-        return Task.CompletedTask;
+        return;
     }
 
     private async Task ExtractWithOpenAIAsync(
@@ -572,7 +572,7 @@ public class MetadataExtractionService : IMetadataExtractionService
         CancellationToken ct)
     {
         // TODO: Extract description from document using OpenAI
-        return Task.CompletedTask;
+        return;
     }
 
     private async Task ValidateAgainstSchemaAsync(ExtractedMetadata result, CancellationToken ct)
