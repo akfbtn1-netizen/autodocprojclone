@@ -373,9 +373,35 @@ function Test-QualityGate {
     }
 }
 
-# Wait a bit for SonarCloud to process the analysis
+# Wait for SonarCloud to process the analysis
 Write-ColorOutput "Waiting for SonarCloud to complete analysis..." "Blue"
-Start-Sleep -Seconds 10
+Write-ColorOutput "This can take 30-60 seconds..." "Yellow"
+
+# Wait longer and retry if metrics aren't available
+$maxRetries = 3
+$retryCount = 0
+$waitTime = 20
+
+while ($retryCount -lt $maxRetries) {
+    Start-Sleep -Seconds $waitTime
+
+    # Try to fetch a simple metric to see if analysis is complete
+    try {
+        $testMetric = Get-SonarMetric -MetricKey "ncloc" -Component $ProjectKey -AuthToken $SonarToken
+        if ($null -ne $testMetric) {
+            Write-ColorOutput "Analysis complete! Running quality gate checks..." "Green"
+            break
+        }
+    }
+    catch {
+        # Ignore errors during retry
+    }
+
+    $retryCount++
+    if ($retryCount -lt $maxRetries) {
+        Write-ColorOutput "Analysis not ready yet, waiting another $waitTime seconds... (Attempt $($retryCount + 1)/$maxRetries)" "Yellow"
+    }
+}
 
 # Run quality gate check
 Test-QualityGate
