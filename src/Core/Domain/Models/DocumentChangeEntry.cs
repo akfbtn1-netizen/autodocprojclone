@@ -30,6 +30,7 @@ public class DocumentChangeEntry
     public string? Documentation { get; set; }       // Documentation
     public string? DocumentationLink { get; set; }   // Documentation Link
     public string? DocId { get; set; }               // DocId (populated after approval)
+    public string? ModifiedStoredProcedures { get; set; }  // Modified Stored Procedures (comma-separated)
 
     // Sync Metadata
     public int ExcelRowNumber { get; set; }

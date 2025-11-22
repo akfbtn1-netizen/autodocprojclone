@@ -185,9 +185,9 @@ public class MetadataExtractionService : IMetadataExtractionService
         result.AssignedTo = rowData.AssignedTo;
 
         // Parse modified procedures
-        if (!string.IsNullOrWhiteSpace(rowData.ModifiedObjects))
+        if (!string.IsNullOrWhiteSpace(rowData.ModifiedStoredProcedures))
         {
-            result.ModifiedProcedures = rowData.ModifiedObjects
+            result.ModifiedProcedures = rowData.ModifiedStoredProcedures
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .ToList();
         }
@@ -343,15 +343,15 @@ public class MetadataExtractionService : IMetadataExtractionService
                 Description = metadata.Description ?? "",
                 Documentation = metadata.Documentation ?? "",
                 ChangeType = metadata.ChangeType ?? "Enhancement",
-                ObjectName = metadata.TableName,
-                PropertyName = metadata.ColumnName,
-                Context = metadata.AdditionalMetadata
+                Table = metadata.TableName,
+                Column = metadata.ColumnName,
+                ModifiedStoredProcedures = string.Join(",", metadata.ModifiedProcedures ?? new List<string>())
             };
 
             var enhanced = await _openAI.EnhanceDocumentationAsync(enhancementRequest, ct);
 
             metadata.EnhancedDescription = enhanced.EnhancedDescription;
-            metadata.EnhancedDocumentation = enhanced.Content;
+            metadata.EnhancedDocumentation = enhanced.EnhancedImplementation;
             metadata.AIGeneratedTags = enhanced.KeyPoints;
             metadata.SemanticCategory = DetermineSemanticCategory(metadata.ChangeType);
 
@@ -530,7 +530,7 @@ public class MetadataExtractionService : IMetadataExtractionService
     {
         // TODO: Implement advanced NER using spaCy, Azure Cognitive Services, or similar
         // For now, use regex-based extraction
-        return;
+        return Task.CompletedTask;
     }
 
     private async Task ExtractWithOpenAIAsync(
@@ -545,11 +545,7 @@ public class MetadataExtractionService : IMetadataExtractionService
                 Description = definition.Length > 1000 ? definition.Substring(0, 1000) : definition,
                 Documentation = "",
                 ChangeType = "StoredProcedure",
-                Context = new Dictionary<string, object>
-                {
-                    ["TableName"] = result.TableName ?? "",
-                    ["SchemaName"] = result.SchemaName ?? ""
-                }
+                Table = $"{result.SchemaName}.{result.TableName}"
             };
 
             var enhanced = await _openAI.EnhanceDocumentationAsync(enhancementRequest, ct);
@@ -572,7 +568,7 @@ public class MetadataExtractionService : IMetadataExtractionService
         CancellationToken ct)
     {
         // TODO: Extract description from document using OpenAI
-        return;
+        return Task.CompletedTask;
     }
 
     private async Task ValidateAgainstSchemaAsync(ExtractedMetadata result, CancellationToken ct)

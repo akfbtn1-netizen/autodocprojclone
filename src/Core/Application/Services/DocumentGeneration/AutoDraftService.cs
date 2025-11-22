@@ -89,7 +89,7 @@ public class AutoDraftService : IAutoDraftService
                 Documentation = entry.Documentation ?? "No documentation provided",
                 Table = entry.TableName,
                 Column = entry.ColumnName,
-                ModifiedObjects = entry.ModifiedObjects,
+                ModifiedStoredProcedures = entry.ModifiedStoredProcedures,
                 CABNumber = entry.CABNumber,
                 JiraNumber = entry.JiraNumber
             };
@@ -216,7 +216,7 @@ public class AutoDraftService : IAutoDraftService
             dateEntered = commonData["dateEntered"],
             author = commonData["author"],
             newTableCreated = commonData["tableName"],
-            storedProcedure = entry.ModifiedObjects,
+            storedProcedure = entry.ModifiedStoredProcedures,
             businessPurpose = enhanced.EnhancedDescription,
             requestDescription = entry.Description,
             reasonForChange = new
@@ -236,9 +236,9 @@ public class AutoDraftService : IAutoDraftService
     private object BuildEnhancementData(DocumentChangeEntry entry, EnhancedDocumentation enhanced,
         Dictionary<string, object?> commonData)
     {
-        var proceduresModified = string.IsNullOrWhiteSpace(entry.ModifiedObjects)
+        var proceduresModified = string.IsNullOrWhiteSpace(entry.ModifiedStoredProcedures)
             ? new List<string>()
-            : entry.ModifiedObjects.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            : entry.ModifiedStoredProcedures.Split(',', StringSplitOptions.RemoveEmptyEntries)
                 .Select(sp => sp.Trim())
                 .ToList();
 
@@ -281,9 +281,9 @@ public class AutoDraftService : IAutoDraftService
     private object BuildDefectFixData(DocumentChangeEntry entry, EnhancedDocumentation enhanced,
         Dictionary<string, object?> commonData)
     {
-        var proceduresModified = string.IsNullOrWhiteSpace(entry.ModifiedObjects)
+        var proceduresModified = string.IsNullOrWhiteSpace(entry.ModifiedStoredProcedures)
             ? new List<string>()
-            : entry.ModifiedObjects.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            : entry.ModifiedStoredProcedures.Split(',', StringSplitOptions.RemoveEmptyEntries)
                 .Select(sp => sp.Trim())
                 .ToList();
 
