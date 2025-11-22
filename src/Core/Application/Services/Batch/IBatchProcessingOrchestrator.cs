@@ -90,6 +90,11 @@ public interface IBatchProcessingOrchestrator
     /// Retry failed items in batch
     /// </summary>
     Task RetryFailedItemsAsync(Guid batchId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Process a batch job (called by background job processor)
+    /// </summary>
+    Task ProcessBatchJobAsync(Guid batchId, CancellationToken ct = default);
 }
 
 /// <summary>

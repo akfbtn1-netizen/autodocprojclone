@@ -1,5 +1,9 @@
 using Hangfire;
 using Hangfire.SqlServer;
+using Hangfire.Dashboard;
+using Hangfire.Client;
+using Hangfire.Server;
+using Hangfire.Common;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -46,8 +50,7 @@ public static class HangfireConfiguration
                 SchemaName = "DaQa",
 
                 // Performance optimization
-                InvisibilityTimeout = TimeSpan.FromMinutes(30),
-                DeleteExpiredBatchesInterval = TimeSpan.FromHours(12)
+                InvisibilityTimeout = TimeSpan.FromMinutes(30)
             }));
 
         // Add Hangfire processing server

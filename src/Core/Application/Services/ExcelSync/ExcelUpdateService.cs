@@ -141,7 +141,7 @@ public class ExcelUpdateService : IExcelUpdateService
 
         try
         {
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            
 
             using var package = new ExcelPackage(new FileInfo(_excelFilePath));
             var worksheet = package.Workbook.Worksheets.FirstOrDefault()

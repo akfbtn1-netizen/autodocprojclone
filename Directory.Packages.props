@@ -13,6 +13,7 @@
     <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
     <!-- Azure Services -->
@@ -21,6 +22,7 @@
     <PackageVersion Include="Azure.Security.KeyVault.Secrets" Version="4.6.0" />
     <PackageVersion Include="Azure.AI.OpenAI" Version="1.0.0-beta.17" />
     <!-- Database -->
+    <PackageVersion Include="Dapper" Version="2.1.35" />
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="5.2.1" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.8" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.8" />
@@ -66,6 +68,10 @@
     <!-- Web API -->
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="8.0.21" />
     <PackageVersion Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    <!-- Background Jobs -->
+    <PackageVersion Include="Hangfire.Core" Version="1.8.14" />
+    <PackageVersion Include="Hangfire.AspNetCore" Version="1.8.14" />
+    <PackageVersion Include="Hangfire.SqlServer" Version="1.8.14" />
     <!-- Testing -->
     <PackageVersion Include="xunit" Version="2.9.0" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />

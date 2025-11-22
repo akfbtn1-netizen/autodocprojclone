@@ -343,15 +343,15 @@ public class MetadataExtractionService : IMetadataExtractionService
                 Description = metadata.Description ?? "",
                 Documentation = metadata.Documentation ?? "",
                 ChangeType = metadata.ChangeType ?? "Enhancement",
-                TableName = metadata.TableName,
-                ColumnName = metadata.ColumnName,
-                AdditionalContext = metadata.AdditionalMetadata
+                Table = metadata.TableName,
+                Column = metadata.ColumnName,
+                ModifiedStoredProcedures = string.Join(",", metadata.ModifiedProcedures ?? new List<string>())
             };
 
             var enhanced = await _openAI.EnhanceDocumentationAsync(enhancementRequest, ct);
 
             metadata.EnhancedDescription = enhanced.EnhancedDescription;
-            metadata.EnhancedDocumentation = enhanced.EnhancedText;
+            metadata.EnhancedDocumentation = enhanced.EnhancedImplementation;
             metadata.AIGeneratedTags = enhanced.KeyPoints;
             metadata.SemanticCategory = DetermineSemanticCategory(metadata.ChangeType);
 
@@ -545,11 +545,7 @@ public class MetadataExtractionService : IMetadataExtractionService
                 Description = definition.Length > 1000 ? definition.Substring(0, 1000) : definition,
                 Documentation = "",
                 ChangeType = "StoredProcedure",
-                AdditionalContext = new Dictionary<string, object>
-                {
-                    ["TableName"] = result.TableName ?? "",
-                    ["SchemaName"] = result.SchemaName ?? ""
-                }
+                Table = $"{result.SchemaName}.{result.TableName}"
             };
 
             var enhanced = await _openAI.EnhanceDocumentationAsync(enhancementRequest, ct);
