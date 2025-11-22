@@ -98,7 +98,7 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
                 ObjectName = obj.ObjectName,
                 ObjectType = obj.ObjectType,
                 Status = BatchItemStatus.Pending,
-                CreatedAt = DateTime.UtcNow
+                CreatedDate = DateTime.UtcNow
             });
         }
 
@@ -163,7 +163,7 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
                 ObjectType = "Document",
                 DocumentPath = filePath,
                 Status = BatchItemStatus.Pending,
-                CreatedAt = DateTime.UtcNow
+                CreatedDate = DateTime.UtcNow
             });
         }
 
@@ -224,7 +224,7 @@ public class BatchProcessingOrchestrator : IBatchProcessingOrchestrator
                 ObjectName = $"{row.Table}.{row.Column}",
                 ObjectType = row.ChangeType,
                 Status = BatchItemStatus.Pending,
-                CreatedAt = DateTime.UtcNow,
+                CreatedDate = DateTime.UtcNow,
                 ExtractedMetadataJson = System.Text.Json.JsonSerializer.Serialize(row)
             });
         }

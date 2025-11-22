@@ -89,7 +89,7 @@ public class AutoDraftService : IAutoDraftService
                 Documentation = entry.Documentation ?? "No documentation provided",
                 Table = entry.TableName,
                 Column = entry.ColumnName,
-                ModifiedStoredProcedures = entry.ModifiedObjects,
+                ModifiedObjects = entry.ModifiedObjects,
                 CABNumber = entry.CABNumber,
                 JiraNumber = entry.JiraNumber
             };

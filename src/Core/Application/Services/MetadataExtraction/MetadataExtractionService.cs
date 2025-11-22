@@ -343,9 +343,9 @@ public class MetadataExtractionService : IMetadataExtractionService
                 Description = metadata.Description ?? "",
                 Documentation = metadata.Documentation ?? "",
                 ChangeType = metadata.ChangeType ?? "Enhancement",
-                TableName = metadata.TableName,
-                ColumnName = metadata.ColumnName,
-                AdditionalContext = metadata.AdditionalMetadata
+                ObjectName = metadata.TableName,
+                PropertyName = metadata.ColumnName,
+                Context = metadata.AdditionalMetadata
             };
 
             var enhanced = await _openAI.EnhanceDocumentationAsync(enhancementRequest, ct);
@@ -545,7 +545,7 @@ public class MetadataExtractionService : IMetadataExtractionService
                 Description = definition.Length > 1000 ? definition.Substring(0, 1000) : definition,
                 Documentation = "",
                 ChangeType = "StoredProcedure",
-                AdditionalContext = new Dictionary<string, object>
+                Context = new Dictionary<string, object>
                 {
                     ["TableName"] = result.TableName ?? "",
                     ["SchemaName"] = result.SchemaName ?? ""
