@@ -55,15 +55,15 @@ public class AgentConfiguration : IAgentConfiguration
             // Try agent-specific configuration first
             var agentSpecificKey = $"Agents:{AgentId}:{key}";
             var value = _configuration.GetValue<T>(agentSpecificKey);
-            
+
             // Fall back to global configuration
-            if (value == null || value.Equals(default(T)))
+            if (EqualityComparer<T>.Default.Equals(value, default))
             {
                 value = _configuration.GetValue<T>(key);
             }
 
             // Cache the result
-            if (value != null)
+            if (!EqualityComparer<T>.Default.Equals(value, default))
             {
                 lock (_cacheLock)
                 {

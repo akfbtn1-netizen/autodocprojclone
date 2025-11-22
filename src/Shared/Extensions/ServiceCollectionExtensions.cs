@@ -65,13 +65,8 @@ public static class ServiceCollectionExtensions
         // Register OpenTelemetry
         services.AddSingleton(provider => new ActivitySource($"Enterprise.Documentation.{agentId}"));
 
-        // Configure Application Insights (if enabled)
-        var instrumentationKey = configuration["ApplicationInsights:InstrumentationKey"];
-        if (!string.IsNullOrEmpty(instrumentationKey))
-        {
-            // Note: This requires Microsoft.ApplicationInsights.AspNetCore package
-            // services.AddApplicationInsightsTelemetry(instrumentationKey);
-        }
+        // Note: Application Insights can be configured separately if needed
+        // by adding Microsoft.ApplicationInsights.AspNetCore package
 
         return services;
     }
