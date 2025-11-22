@@ -1,5 +1,9 @@
 using Hangfire;
 using Hangfire.SqlServer;
+using Hangfire.Dashboard;
+using Hangfire.Client;
+using Hangfire.Server;
+using Hangfire.Common;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
