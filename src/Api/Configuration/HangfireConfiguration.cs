@@ -7,6 +7,7 @@ using Hangfire.Common;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 
 namespace Enterprise.Documentation.Api.Configuration;
@@ -93,7 +94,11 @@ public static class HangfireConfiguration
             OnAttemptsExceeded = AttemptsExceededAction.Delete
         });
 
-        GlobalJobFilters.Filters.Add(new JobLoggingFilter());
+        // Get logger from DI container
+        var serviceProvider = app.ApplicationServices;
+        var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
+        var logger = loggerFactory.CreateLogger<JobLoggingFilter>();
+        GlobalJobFilters.Filters.Add(new JobLoggingFilter(logger));
 
         // Configure recurring jobs
         ConfigureRecurringJobs(configuration);
@@ -143,31 +148,31 @@ public static class HangfireConfiguration
     /// Clean up old batch jobs from database
     /// </summary>
     [AutomaticRetry(Attempts = 3)]
-    public static void CleanupOldBatchJobs(int daysOld)
+    public static void CleanupOldBatchJobs(int daysOld, ILogger<HangfireConfiguration> logger)
     {
         // This would be implemented to clean up old completed/failed batches
         // For now, just a placeholder
-        Console.WriteLine($"Cleaning up batch jobs older than {daysOld} days");
+        logger.LogInformation("Cleaning up batch jobs older than {DaysOld} days", daysOld);
     }
 
     /// <summary>
     /// Update vector index statistics
     /// </summary>
     [AutomaticRetry(Attempts = 3)]
-    public static void UpdateVectorIndexStatistics()
+    public static void UpdateVectorIndexStatistics(ILogger<HangfireConfiguration> logger)
     {
         // This would query the vector database and update statistics
-        Console.WriteLine("Updating vector index statistics");
+        logger.LogInformation("Updating vector index statistics");
     }
 
     /// <summary>
     /// Generate weekly batch processing report
     /// </summary>
     [AutomaticRetry(Attempts = 3)]
-    public static void GenerateWeeklyBatchReport()
+    public static void GenerateWeeklyBatchReport(ILogger<HangfireConfiguration> logger)
     {
         // This would generate and email a weekly report
-        Console.WriteLine("Generating weekly batch processing report");
+        logger.LogInformation("Generating weekly batch processing report");
     }
 
     #endregion
@@ -213,30 +218,38 @@ public class HangfireDashboardAuthorizationFilter : IDashboardAuthorizationFilte
 /// </summary>
 public class JobLoggingFilter : IClientFilter, IServerFilter
 {
+    private readonly ILogger<JobLoggingFilter> _logger;
+
+    public JobLoggingFilter(ILogger<JobLoggingFilter> logger)
+    {
+        _logger = logger;
+    }
+
     public void OnCreating(CreatingContext context)
     {
-        Console.WriteLine($"Job creating: {context.Job.Type.Name}.{context.Job.Method.Name}");
+        _logger.LogDebug("Job creating: {JobType}.{JobMethod}",
+            context.Job.Type.Name, context.Job.Method.Name);
     }
 
     public void OnCreated(CreatedContext context)
     {
-        Console.WriteLine($"Job created: {context.BackgroundJob.Id}");
+        _logger.LogInformation("Job created: {JobId}", context.BackgroundJob.Id);
     }
 
     public void OnPerforming(PerformingContext context)
     {
-        Console.WriteLine($"Job starting: {context.BackgroundJob.Id}");
+        _logger.LogInformation("Job starting: {JobId}", context.BackgroundJob.Id);
     }
 
     public void OnPerformed(PerformedContext context)
     {
         if (context.Exception != null)
         {
-            Console.WriteLine($"Job failed: {context.BackgroundJob.Id} - {context.Exception.Message}");
+            _logger.LogError(context.Exception, "Job failed: {JobId}", context.BackgroundJob.Id);
         }
         else
         {
-            Console.WriteLine($"Job completed: {context.BackgroundJob.Id}");
+            _logger.LogInformation("Job completed: {JobId}", context.BackgroundJob.Id);
         }
     }
 }
