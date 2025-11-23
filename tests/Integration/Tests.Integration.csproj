@@ -14,10 +14,20 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Moq" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Api\Api.csproj" />
+    <ProjectReference Include="..\..\src\Core\Domain\Core.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Core\Application\Core.Application.csproj" />
+    <ProjectReference Include="..\..\src\Shared\Contracts\Shared.Contracts.csproj" />
   </ItemGroup>
 
 </Project>
