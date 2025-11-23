@@ -47,10 +47,7 @@ public static class HangfireConfiguration
                 PrepareSchemaIfNecessary = true,
 
                 // Configure schema - MUST use DaQa schema (only schema with write permissions)
-                SchemaName = "DaQa",
-
-                // Performance optimization
-                InvisibilityTimeout = TimeSpan.FromMinutes(30)
+                SchemaName = "DaQa"
             }));
 
         // Add Hangfire processing server
