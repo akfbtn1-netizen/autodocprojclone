@@ -26,6 +26,11 @@ public sealed class DocumentId : StronglyTypedId<DocumentId>
     }
 
     /// <summary>
+    /// Creates a new DocumentId with a random GUID.
+    /// </summary>
+    public static DocumentId New() => new();
+
+    /// <summary>
     /// Creates a DocumentId for testing purposes with a predictable value.
     /// </summary>
     public static DocumentId ForTesting(int seed = 1)
@@ -55,6 +60,11 @@ public sealed class TemplateId : StronglyTypedId<TemplateId>
         return new TemplateId(guid);
     }
 
+    /// <summary>
+    /// Creates a new TemplateId with a random GUID.
+    /// </summary>
+    public static TemplateId New() => new();
+
     public static TemplateId ForTesting(int seed = 1)
     {
         var bytes = new byte[16];
@@ -82,6 +92,11 @@ public sealed class UserId : StronglyTypedId<UserId>
         return new UserId(guid);
     }
 
+    /// <summary>
+    /// Creates a new UserId with a random GUID.
+    /// </summary>
+    public static UserId New() => new();
+
     public static UserId ForTesting(int seed = 1)
     {
         var bytes = new byte[16];
@@ -108,6 +123,11 @@ public sealed class AgentId : StronglyTypedId<AgentId>
 
         return new AgentId(guid);
     }
+
+    /// <summary>
+    /// Creates a new AgentId with a random GUID.
+    /// </summary>
+    public static AgentId New() => new();
 
     public static AgentId ForTesting(int seed = 1)
     {
