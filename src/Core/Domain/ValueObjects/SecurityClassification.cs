@@ -126,8 +126,12 @@ public sealed class SecurityClassification : BaseValueObject
     /// </summary>
     public bool CanAccess(List<string> userAccessGroups)
     {
+        // Public documents are accessible to everyone
+        if (IsPublic)
+            return true;
+
         if (userAccessGroups == null || !userAccessGroups.Any())
-            return IsPublic;
+            return false;
 
         return AccessGroups.Any(ag => userAccessGroups.Contains(ag, StringComparer.OrdinalIgnoreCase));
     }

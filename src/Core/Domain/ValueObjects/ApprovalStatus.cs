@@ -92,7 +92,7 @@ public sealed class ApprovalStatus : BaseValueObject
         {
             "NotRequired" => false, // Cannot transition to NotRequired once in workflow
             "Pending" => Status is "NotRequired" or "Rejected", // Can request approval again after rejection
-            "Approved" => Status == "Pending",
+            "Approved" => Status is "Pending" or "NotRequired", // Allow direct approval for documents not requiring workflow
             "Rejected" => Status == "Pending",
             "Expired" => Status == "Pending",
             _ => false

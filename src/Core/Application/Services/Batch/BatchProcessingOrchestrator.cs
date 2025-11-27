@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
+using Hangfire;
 using Enterprise.Documentation.Core.Application.Services.DocumentGeneration;
 using Enterprise.Documentation.Core.Application.Services.MasterIndex;
 using Enterprise.Documentation.Core.Application.Services.MetadataExtraction;
