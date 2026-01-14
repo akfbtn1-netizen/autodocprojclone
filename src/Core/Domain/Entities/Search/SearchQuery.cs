@@ -4,7 +4,7 @@ namespace Enterprise.Documentation.Core.Domain.Entities.Search;
 /// Represents a search query executed by a user.
 /// Tracked for analytics and continuous learning.
 /// </summary>
-public class SearchQuery : BaseEntity
+public class SearchQuery
 {
     public Guid QueryId { get; private set; }
     public string UserId { get; private set; } = string.Empty;
