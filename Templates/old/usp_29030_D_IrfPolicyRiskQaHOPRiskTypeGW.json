@@ -1,0 +1,14 @@
+{
+  "StoredProcedureName": "usp_29030_D_IrfPolicyRiskQaHOPRiskTypeGW",
+  "SchemaName": "DaQa",
+  "TableName": "irf_policy_risk",
+  "Description": "QA risk_Type_cd_gw for Property Owner. Validates that risk_type_cd_gw is set correctly for Property Owners, using data from gwpcDaily.pcx_hop_risktype.",
+  "AssignedTo": "jrh",
+  "Date": "2025-12-10",
+  "DocId": "",
+  "ChangeType": "Validation",
+  "Parameters": [
+    {"name": "@OpenPeriod", "type": "int", "description": "Open period to process", "defaultValue": null},
+    {"name": "@ThruPeriod", "type": "int", "description": "End period to process", "defaultValue": null}
+  ]
+}

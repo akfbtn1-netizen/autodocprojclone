@@ -1,0 +1,25 @@
+{
+  "doc_id": "BR-0001",
+  "jira": "TEST-BR-001",
+  "status": "Completed",
+  "date": "01/07/2026",
+  "reported_by": "Alex Kirby",
+  "assigned_to": "Alex Kirby",
+  "schema": "dbo",
+  "table": "Customers",
+  "column": "EmailAddress",
+  "data_type": "VARCHAR(255)",
+  "values": "**Valid Email** = Standard email format (user@domain.com)\n**Invalid Email** = Rejected by validation",
+  "purpose": "Enhanced data quality by preventing invalid email addresses from being stored in customer records. Ensures all customer communications reach valid email addresses.",
+  "summary": "This business request implements email format validation for customer records using regex pattern matching. The implementation follows database-level validation approach with proper error handling.",
+  "rule_def": "**Validation Logic:**\nAn email is considered valid when:\n- It follows standard email format (user@domain.com)\n- Contains valid domain with proper TLD\n- No special characters that break email standards\n\n**Implementation Approach:**\nThe system uses regex validation within the stored procedure, providing immediate feedback and preventing invalid data entry.",
+  "code": "-- BEGIN TEST-BR-001: Add Email Validation\nALTER PROCEDURE daqa.usp_ValidateCustomer\n    @CustomerID INT,\n    @EmailAddress VARCHAR(255)\nAS\nBEGIN\n    -- Email format validation\n    IF @EmailAddress NOT LIKE '%_@_%._%'\n       OR @EmailAddress LIKE '%..%'\n       OR @EmailAddress LIKE '%@%@%'\n       OR @EmailAddress LIKE '%.@%'\n       OR @EmailAddress LIKE '%@.%'\n    BEGIN\n        RAISERROR('Invalid email format', 16, 1)\n        RETURN\n    END\n    \n    -- Update customer record\n    UPDATE Customers\n    SET EmailAddress = @EmailAddress,\n        ModifiedDate = GETDATE()\n    WHERE CustomerID = @CustomerID\nEND\n-- END TEST-BR-001",
+  "code_explain": "**Two-Phase Validation:**\n\n**Phase 1: Format Validation**\n- Validates basic email structure using LIKE patterns\n- Checks for common email format violations\n- Prevents double dots, multiple @ signs, and malformed domains\n\n**Phase 2: Update Logic**\n- Updates customer record only after validation passes\n- Includes audit trail with ModifiedDate\n- Uses RAISERROR for proper error handling\n\n**Performance Considerations:**\n- Lightweight validation using SQL pattern matching\n- Single transaction for validation and update\n- Minimal overhead on existing procedure",
+  "control_table": "N/A - Direct validation logic",
+  "table_desc": "Email validation implemented directly in stored procedure for immediate feedback and data integrity enforcement.",
+  "key_columns": [
+    "CustomerID - Primary key identifier",
+    "EmailAddress - Customer email address (now validated)",
+    "ModifiedDate - Audit trail for email updates"
+  ]
+}

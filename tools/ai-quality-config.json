@@ -1,0 +1,23 @@
+﻿{
+  "CodebasePath": "src",
+  "ApprovalHistoryPath": "tools/approval-history.json",
+  "EnableMasterIndex": false,
+  "RiskPolicy": {
+    "AccountableOfficer": "CTO",
+    "AuditRetentionYears": 7,
+    "SecurityThreshold": 90.0,
+    "QualityThreshold": 85.0
+  },
+  "OrganizationalContext": {
+    "MaxComplexity": 6,
+    "MaxMethodLines": 20,
+    "MaxClassLines": 200,
+    "MaxFileLines": 300,
+    "RequireXmlDocs": true,
+    "NamingConventions": {
+      "Agent": "Must end with 'Agent'",
+      "Service": "Must end with 'Service'",
+      "Interface": "Must start with 'I'"
+    }
+  }
+}

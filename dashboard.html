@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Documentation Platform - Real-Time Workflow</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.0/signalr.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #2C5F8D 0%, #1a4a73 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .workflow-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+        }
+        .workflow-panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .event-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 6px;
+            border-left: 4px solid #ddd;
+            transition: all 0.3s ease;
+        }
+        .event-item.completed {
+            background-color: #d4edda;
+            border-left-color: #28a745;
+        }
+        .event-item.in-progress {
+            background-color: #fff3cd;
+            border-left-color: #ffc107;
+            animation: pulse 2s infinite;
+        }
+        .event-item.failed {
+            background-color: #f8d7da;
+            border-left-color: #dc3545;
+        }
+        .event-item.warning {
+            background-color: #ffeaa7;
+            border-left-color: #fdcb6e;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        .event-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .event-details {
+            flex: 1;
+        }
+        .event-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .event-message {
+            color: #666;
+            font-size: 14px;
+        }
+        .event-metadata {
+            font-size: 12px;
+            color: #888;
+            margin-top: 4px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #2C5F8D;
+        }
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+        .sp-highlight {
+            background: linear-gradient(135deg, #e8f4fd 0%, #d1ecf1 100%);
+            border-left-color: #17a2b8 !important;
+        }
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .workflow-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .workflow-id {
+            font-family: 'Courier New', monospace;
+            background: #f8f9fa;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .approval-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            background: #fff;
+            transition: all 0.3s ease;
+        }
+        .approval-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+        .approval-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .approval-id {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #666;
+        }
+        .approval-status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .approval-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .btn-approve {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            flex: 1;
+        }
+        .btn-reject {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            flex: 1;
+        }
+        .btn-approve:hover {
+            background: #218838;
+        }
+        .btn-reject:hover {
+            background: #c82333;
+        }
+        .btn-preview {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            flex: 1;
+        }
+        .btn-preview:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 Enterprise Documentation Platform</h1>
+        <p>Real-Time Adaptive Stored Procedure Documentation Workflow</p>
+    </div>
+
+    <div class="connection-status" id="connectionStatus">
+        Connecting...
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value" id="totalWorkflows">0</div>
+            <div class="stat-label">Active Workflows</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="spDocuments">0</div>
+            <div class="stat-label">SP Documents Generated</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="avgComplexity">0</div>
+            <div class="stat-label">Avg Complexity Score</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="successRate">100%</div>
+            <div class="stat-label">Success Rate</div>
+        </div>
+    </div>
+
+    <div class="workflow-container">
+        <div class="workflow-panel">
+            <div class="workflow-header">
+                <h3>🔄 Current Workflows</h3>
+                <button onclick="simulateWorkflow()" style="padding: 8px 16px; border: none; background: #2C5F8D; color: white; border-radius: 4px; cursor: pointer;">
+                    🧪 Simulate SP Change
+                </button>
+            </div>
+            <div id="activeWorkflows">
+                <p style="text-align: center; color: #666; padding: 40px;">
+                    Waiting for workflow events...
+                </p>
+            </div>
+        </div>
+
+        <div class="workflow-panel">
+            <h3>📊 Event Timeline</h3>
+            <div id="eventTimeline">
+                <p style="text-align: center; color: #666; padding: 40px;">
+                    Event timeline will appear here...
+                </p>
+            </div>
+        </div>
+
+        <div class="workflow-panel">
+            <div class="workflow-header">
+                <h3>📋 Pending Approvals</h3>
+                <button onclick="loadApprovals()" style="padding: 8px 16px; border: none; background: #28a745; color: white; border-radius: 4px; cursor: pointer;">
+                    🔄 Refresh
+                </button>
+            </div>
+            <div id="pendingApprovals">
+                <p style="text-align: center; color: #666; padding: 40px;">
+                    Loading approvals...
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // SignalR connection
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("https://localhost:7001/hubs/workflow")
+            .build();
+
+        // Global state
+        let activeWorkflows = new Map();
+        let eventCount = 0;
+        let spDocumentCount = 0;
+        let complexityScores = [];
+        let successfulWorkflows = 0;
+        let totalWorkflows = 0;
+
+        // Connection management
+        connection.start().then(function () {
+            document.getElementById('connectionStatus').textContent = '🟢 Connected';
+            document.getElementById('connectionStatus').className = 'connection-status connected';
+            console.log('Connected to workflow hub');
+        }).catch(function (err) {
+            document.getElementById('connectionStatus').textContent = '🔴 Disconnected';
+            document.getElementById('connectionStatus').className = 'connection-status disconnected';
+            console.error('Connection failed: ', err.toString());
+        });
+
+        // Event handlers
+        connection.on("WorkflowEvent", function (event) {
+            console.log('Received workflow event:', event);
+            processWorkflowEvent(event);
+            updateStats();
+        });
+
+        function processWorkflowEvent(event) {
+            const workflowId = event.workflowId;
+            
+            if (!activeWorkflows.has(workflowId)) {
+                activeWorkflows.set(workflowId, {
+                    id: workflowId,
+                    events: [],
+                    startTime: new Date(event.timestamp),
+                    status: 'InProgress'
+                });
+                totalWorkflows++;
+                
+                // Join SignalR group for this workflow
+                connection.invoke("JoinWorkflowGroup", workflowId);
+            }
+
+            const workflow = activeWorkflows.get(workflowId);
+            workflow.events.push(event);
+            
+            // Update workflow status
+            if (event.eventType === 'WorkflowCompleted') {
+                workflow.status = 'Completed';
+                successfulWorkflows++;
+            } else if (event.eventType === 'WorkflowFailed') {
+                workflow.status = 'Failed';
+            }
+
+            // Track SP-specific metrics
+            if (event.eventType === 'SPDocumentationGenerationCompleted') {
+                spDocumentCount++;
+                if (event.metadata) {
+                    const metadata = JSON.parse(event.metadata);
+                    if (metadata.ComplexityScore) {
+                        complexityScores.push(metadata.ComplexityScore);
+                    }
+                }
+            }
+
+            updateWorkflowDisplay();
+            updateEventTimeline(event);
+            eventCount++;
+        }
+
+        function updateWorkflowDisplay() {
+            const container = document.getElementById('activeWorkflows');
+            
+            if (activeWorkflows.size === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">Waiting for workflow events...</p>';
+                return;
+            }
+
+            let html = '';
+            for (const [id, workflow] of activeWorkflows) {
+                const latestEvent = workflow.events[workflow.events.length - 1];
+                const duration = new Date() - workflow.startTime;
+                const durationText = formatDuration(duration);
+
+                html += `
+                    <div class="workflow-item" style="border: 1px solid #ddd; border-radius: 6px; padding: 15px; margin-bottom: 10px; background: ${workflow.status === 'Completed' ? '#f8fff8' : workflow.status === 'Failed' ? '#fff8f8' : '#fffef8'}">
+                        <div class="workflow-header">
+                            <span class="workflow-id">${id}</span>
+                            <span style="font-size: 12px; color: #666;">${durationText}</span>
+                        </div>
+                        <div style="font-weight: 600; margin: 8px 0;">${getEventTypeDisplayName(latestEvent.eventType)}</div>
+                        <div style="font-size: 14px; color: #666;">${latestEvent.message}</div>
+                        <div style="margin-top: 8px;">
+                            <span style="padding: 2px 8px; border-radius: 12px; font-size: 11px; ${getStatusStyle(latestEvent.status)}">${latestEvent.status}</span>
+                            <span style="margin-left: 10px; font-size: 12px; color: #888;">${workflow.events.length} events</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+        }
+
+        function updateEventTimeline(event) {
+            const container = document.getElementById('eventTimeline');
+            const eventElement = createEventElement(event);
+            
+            if (container.innerHTML.includes('Event timeline will appear here')) {
+                container.innerHTML = '';
+            }
+            
+            container.insertBefore(eventElement, container.firstChild);
+            
+            // Keep only last 20 events
+            while (container.children.length > 20) {
+                container.removeChild(container.lastChild);
+            }
+        }
+
+        function createEventElement(event) {
+            const div = document.createElement('div');
+            div.className = `event-item ${event.status.toLowerCase()} ${isStoredProcedureEvent(event.eventType) ? 'sp-highlight' : ''}`;
+            
+            const icon = getEventIcon(event.eventType, event.status);
+            const timestamp = new Date(event.timestamp).toLocaleTimeString();
+            
+            let metadataHtml = '';
+            if (event.metadata) {
+                try {
+                    const metadata = JSON.parse(event.metadata);
+                    if (metadata.ComplexityScore) {
+                        metadataHtml = `<div class="event-metadata">Complexity: ${metadata.ComplexityScore}/100 | ${metadata.ComplexityLevel || 'N/A'}</div>`;
+                    }
+                } catch (e) {
+                    // Ignore metadata parsing errors
+                }
+            }
+
+            div.innerHTML = `
+                <div class="event-icon" style="${getIconStyle(event.status)}">${icon}</div>
+                <div class="event-details">
+                    <div class="event-title">${getEventTypeDisplayName(event.eventType)}</div>
+                    <div class="event-message">${event.message}</div>
+                    ${metadataHtml}
+                    <div class="event-metadata">${timestamp} | ${event.workflowId} ${event.durationMs ? `| ${event.durationMs}ms` : ''}</div>
+                </div>
+            `;
+            
+            return div;
+        }
+
+        function updateStats() {
+            document.getElementById('totalWorkflows').textContent = totalWorkflows;
+            document.getElementById('spDocuments').textContent = spDocumentCount;
+            
+            const avgComplexity = complexityScores.length > 0 
+                ? Math.round(complexityScores.reduce((a, b) => a + b, 0) / complexityScores.length)
+                : 0;
+            document.getElementById('avgComplexity').textContent = avgComplexity;
+            
+            const successRate = totalWorkflows > 0 
+                ? Math.round((successfulWorkflows / totalWorkflows) * 100)
+                : 100;
+            document.getElementById('successRate').textContent = successRate + '%';
+        }
+
+        // Utility functions
+        function isStoredProcedureEvent(eventType) {
+            return ['StoredProcedureDetected', 'ComplexityAnalysisStarted', 'ComplexityAnalysisCompleted', 
+                   'SPDocumentationGenerationStarted', 'SPDocumentationGenerationCompleted', 'VersionHistoryUpdated'].includes(eventType);
+        }
+
+        function getEventTypeDisplayName(eventType) {
+            const names = {
+                'WatcherDetectedNewRow': '👁️ Change Detected',
+                'CodeExtractionStarted': '📝 Code Extraction',
+                'CodeExtractionCompleted': '✅ Code Extracted',
+                'CodeQualityAuditStarted': '🔍 Complexity Analysis',
+                'CodeQualityAuditCompleted': '✅ Complexity Analyzed',
+                'StoredProcedureDetected': '🔧 SP Change Detected',
+                'ComplexityAnalysisStarted': '📊 Complexity Analysis',
+                'ComplexityAnalysisCompleted': '✅ Complexity Analyzed',
+                'SPDocumentationGenerationStarted': '📄 SP Doc Generation',
+                'SPDocumentationGenerationCompleted': '✅ SP Doc Generated',
+                'VersionHistoryUpdated': '📚 Version Updated',
+                'DraftDocumentGenerationStarted': '📝 Draft Generation',
+                'DraftDocumentGenerationCompleted': '✅ Draft Generated',
+                'DocumentApproved': '👍 Document Approved',
+                'FinalDocumentGenerationStarted': '📄 Final Generation',
+                'FinalDocumentGenerationCompleted': '✅ Final Generated',
+                'MasterIndexPopulationCompleted': '📋 Index Updated',
+                'WorkflowCompleted': '🎉 Workflow Complete',
+                'WorkflowFailed': '❌ Workflow Failed'
+            };
+            return names[eventType] || eventType;
+        }
+
+        function getEventIcon(eventType, status) {
+            if (status === 'Failed') return '❌';
+            if (status === 'InProgress') return '⏳';
+            if (status === 'Warning') return '⚠️';
+            if (isStoredProcedureEvent(eventType)) return '🔧';
+            return '✅';
+        }
+
+        function getIconStyle(status) {
+            const styles = {
+                'Completed': 'background-color: #28a745; color: white;',
+                'InProgress': 'background-color: #ffc107; color: black;',
+                'Failed': 'background-color: #dc3545; color: white;',
+                'Warning': 'background-color: #fd7e14; color: white;'
+            };
+            return styles[status] || 'background-color: #6c757d; color: white;';
+        }
+
+        function getStatusStyle(status) {
+            const styles = {
+                'Completed': 'background-color: #d4edda; color: #155724;',
+                'InProgress': 'background-color: #fff3cd; color: #856404;',
+                'Failed': 'background-color: #f8d7da; color: #721c24;',
+                'Warning': 'background-color: #ffeaa7; color: #856404;'
+            };
+            return styles[status] || 'background-color: #e9ecef; color: #495057;';
+        }
+
+        function formatDuration(ms) {
+            const seconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(seconds / 60);
+            if (minutes > 0) {
+                return `${minutes}m ${seconds % 60}s`;
+            }
+            return `${seconds}s`;
+        }
+
+        // Demo function
+        function simulateWorkflow() {
+            // This would trigger a test workflow in a real implementation
+            console.log('Simulating stored procedure change workflow...');
+            
+            // For demo purposes, show a message
+            alert('In a real implementation, this would trigger a stored procedure change detection workflow.\n\nThe system would:\n1. Detect SP change\n2. Analyze complexity\n3. Generate adaptive documentation\n4. Update version history\n5. Send notifications');
+        }
+
+        // Approvals Management
+        const API_BASE_URL = 'http://localhost:5197/api';
+
+        async function loadApprovals() {
+            try {
+                document.getElementById('pendingApprovals').innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Loading approvals...</p>';
+                
+                const response = await fetch(`${API_BASE_URL}/approvals/pending`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                
+                const approvals = await response.json();
+                displayApprovals(approvals);
+            } catch (error) {
+                console.error('Error loading approvals:', error);
+                document.getElementById('pendingApprovals').innerHTML = `
+                    <div style="text-align: center; color: #dc3545; padding: 20px;">
+                        <p>❌ Failed to load approvals</p>
+                        <small>${error.message}</small>
+                        <br><br>
+                        <button onclick="loadApprovals()" style="padding: 8px 16px; border: none; background: #007bff; color: white; border-radius: 4px; cursor: pointer;">
+                            Retry
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        function displayApprovals(approvals) {
+            const container = document.getElementById('pendingApprovals');
+            
+            if (approvals.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #28a745; padding: 40px;">✅ No pending approvals</p>';
+                return;
+            }
+
+            const approvalsHtml = approvals.map(approval => `
+                <div class="approval-card">
+                    <div class="approval-header">
+                        <div>
+                            <strong>📄 ${approval.documentId ? approval.documentId.substring(0, 8) + '...' : 'Document'}</strong>
+                            <br>
+                            <span class="approval-id">ID: ${approval.approvalId}</span>
+                        </div>
+                        <span class="approval-status status-pending">📋 ${approval.approvalStatus || 'PENDING'}</span>
+                    </div>
+                    <div>
+                        <strong>Requested By:</strong> ${approval.requestedBy || 'System'}<br>
+                        <strong>Created:</strong> ${new Date(approval.requestedDate).toLocaleDateString()}<br>
+                        <strong>Type:</strong> ${approval.documentType || 'Document Change'}<br>
+                        <strong>Comments:</strong> ${approval.comments || 'No comments'}
+                    </div>
+                    <div class="approval-actions">
+                        <button class="btn-preview" onclick="previewDocument('${approval.documentId}')">
+                            👁️ Preview
+                        </button>
+                        <button class="btn-approve" onclick="approveDocument('${approval.approvalId}')">
+                            ✅ Approve
+                        </button>
+                        <button class="btn-reject" onclick="rejectDocument('${approval.approvalId}')">
+                            ❌ Reject
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = approvalsHtml;
+        }
+
+        async function approveDocument(approvalId) {
+            if (!confirm('Are you sure you want to approve this document?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/approvals/${approvalId}/approve`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        IsApproved: true,
+                        ApprovedBy: 'dashboard.user@company.com',
+                        Comments: 'Approved via Dashboard'
+                    })
+                });
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                
+                const result = await response.json();
+                alert(`✅ Document approved successfully!\n\n${result.Message || result.message || 'Approval processed'}`);
+                loadApprovals(); // Refresh the list
+            } catch (error) {
+                console.error('Error approving document:', error);
+                alert(`❌ Failed to approve document:\n${error.message}`);
+            }
+        }
+
+        async function rejectDocument(approvalId) {
+            const reason = prompt('Please provide a reason for rejection:');
+            if (!reason) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/approvals/${approvalId}/reject`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        IsApproved: false,
+                        ApprovedBy: 'dashboard.user@company.com',
+                        RejectionReason: reason,
+                        Comments: 'Rejected via Dashboard'
+                    })
+                });
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                
+                const result = await response.json();
+                alert(`✅ Document rejected successfully!\n\n${result.Message || result.message || 'Rejection processed'}`);
+                loadApprovals(); // Refresh the list
+            } catch (error) {
+                console.error('Error rejecting document:', error);
+                alert(`❌ Failed to reject document:\n${error.message}`);
+            }
+        }
+
+        async function previewDocument(documentId) {
+            try {
+                console.log('Previewing document:', documentId);
+                
+                // Create download URL
+                const downloadUrl = `${API_BASE_URL}/documents/download/draft/${documentId}`;
+                
+                // Open in new tab/window for preview
+                const newWindow = window.open(downloadUrl, '_blank');
+                
+                // If popup was blocked, show download link
+                if (!newWindow) {
+                    if (confirm('Popup blocked. Click OK to download the document directly.')) {
+                        // Create temporary download link
+                        const downloadLink = document.createElement('a');
+                        downloadLink.href = downloadUrl;
+                        downloadLink.download = `Document-${documentId}`;
+                        document.body.appendChild(downloadLink);
+                        downloadLink.click();
+                        document.body.removeChild(downloadLink);
+                    }
+                }
+            } catch (error) {
+                console.error('Error previewing document:', error);
+                alert(`❌ Failed to preview document:\n${error.message}`);
+            }
+        }
+
+        // Auto-load approvals on page load
+        window.addEventListener('load', () => {
+            setTimeout(loadApprovals, 1000); // Load after 1 second
+        });
+
+        // Cleanup inactive workflows periodically
+        setInterval(() => {
+            const now = new Date();
+            for (const [id, workflow] of activeWorkflows) {
+                const age = now - workflow.startTime;
+                if (age > 300000 && (workflow.status === 'Completed' || workflow.status === 'Failed')) { // 5 minutes
+                    activeWorkflows.delete(id);
+                }
+            }
+            updateWorkflowDisplay();
+        }, 30000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Document Download Test</title>
+</head>
+<body>
+    <h1>🧪 Document Download Test</h1>
+    <p>Testing the new document preview functionality</p>
+    
+    <button onclick="testDownload('AP001')">📄 Test Download AP001</button>
+    <button onclick="testDownload('AP002')">📄 Test Download AP002</button>
+    
+    <div id="results" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc;"></div>
+    
+    <script>
+        const API_BASE_URL = 'http://localhost:5197/api';
+        
+        async function testDownload(documentId) {
+            const results = document.getElementById('results');
+            results.innerHTML = `<p>🔄 Testing download for document: ${documentId}</p>`;
+            
+            try {
+                const downloadUrl = `${API_BASE_URL}/documents/download/draft/${documentId}`;
+                console.log('Attempting download from:', downloadUrl);
+                
+                const response = await fetch(downloadUrl);
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    results.innerHTML = `
+                        <p>✅ SUCCESS!</p>
+                        <p><strong>Document ID:</strong> ${documentId}</p>
+                        <p><strong>Content-Type:</strong> ${response.headers.get('Content-Type')}</p>
+                        <p><strong>Size:</strong> ${blob.size} bytes</p>
+                        <button onclick="downloadBlob('${documentId}', '${response.headers.get('Content-Type')}')">💾 Download File</button>
+                    `;
+                    
+                    // Store blob for download
+                    window.downloadBlob = (docId, contentType) => {
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `document-${docId}`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    };
+                } else {
+                    results.innerHTML = `
+                        <p>❌ FAILED!</p>
+                        <p><strong>Status:</strong> ${response.status} ${response.statusText}</p>
+                        <p><strong>URL:</strong> ${downloadUrl}</p>
+                    `;
+                }
+            } catch (error) {
+                results.innerHTML = `
+                    <p>❌ ERROR!</p>
+                    <p><strong>Message:</strong> ${error.message}</p>
+                    <p><strong>URL:</strong> ${API_BASE_URL}/documents/download/draft/${documentId}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

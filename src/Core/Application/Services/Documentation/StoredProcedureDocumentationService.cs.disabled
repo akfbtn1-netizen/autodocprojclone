@@ -1,0 +1,777 @@
+// <copyright file="StoredProcedureDocumentationService.cs" company="Enterprise Documentation Platform">
+// Copyright (c) Enterprise Documentation Platform. All rights reserved.
+// This software is proprietary and confidential.
+// </copyright>
+
+using Microsoft.Extensions.Logging;
+using Microsoft.Data.SqlClient;
+using Dapper;
+using System.Text.RegularExpressions;
+using Microsoft.Extensions.Configuration;
+using Enterprise.Documentation.Core.Application.Interfaces.Services;
+using Enterprise.Documentation.Core.Application.Services.DocumentGeneration.Templates;
+using Enterprise.Documentation.Core.Application.Services.DocumentGeneration;
+
+namespace Enterprise.Documentation.Core.Application.Services.Documentation;
+
+#if false // Temporarily disabled due to compilation complexity
+/// <summary>
+/// Interface for stored procedure documentation management with adaptive logic
+/// for detecting existing documentation and managing version history.
+/// </summary>
+public interface IStoredProcedureDocumentationService
+{
+    /// <summary>
+    /// Creates or updates stored procedure documentation with automatic detection of existing docs.
+    /// </summary>
+    /// <param name="procedureName">The name of the stored procedure.</param>
+    /// <param name="changeDocId">The change document ID for tracking.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The document ID of the created or updated documentation.</returns>
+    Task<string> CreateOrUpdateSPDocumentationAsync(string procedureName, string changeDocId, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Checks if documentation already exists for a stored procedure.
+    /// </summary>
+    /// <param name="procedureName">The name of the stored procedure.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if documentation exists, false otherwise.</returns>
+    Task<bool> SPDocumentationExistsAsync(string procedureName, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Calculates complexity score for a stored procedure based on code analysis.
+    /// </summary>
+    /// <param name="procedureCode">The stored procedure code to analyze.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Complexity score from 0-100.</returns>
+    Task<int> CalculateComplexityScoreAsync(string procedureCode, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Service for managing stored procedure documentation with adaptive logic
+/// for automatic documentation detection and version management.
+/// Integrates with OpenXML template generation and MasterIndex tracking.
+/// </summary>
+public class StoredProcedureDocumentationService : IStoredProcedureDocumentationService
+{
+    private readonly ILogger<StoredProcedureDocumentationService> _logger;
+    private readonly string _connectionString;
+    private readonly string _outputPath;
+    private readonly IDocGeneratorService _docGeneratorService;
+
+    public StoredProcedureDocumentationService(
+        ILogger<StoredProcedureDocumentationService> logger,
+        IConfiguration configuration,
+        IDocGeneratorService docGeneratorService)
+    {
+        _logger = logger;
+        _connectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("DefaultConnection required");
+        _outputPath = configuration["DocGenerator:MockSharePointPath"]
+            ?? throw new InvalidOperationException("MockSharePointPath required");
+        _docGeneratorService = docGeneratorService;
+    }
+
+    /// <inheritdoc/>
+    public async Task<bool> SPDocumentationExistsAsync(string procedureName, CancellationToken cancellationToken = default)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        var exists = await connection.QueryFirstOrDefaultAsync<int>(@"
+            SELECT COUNT(*)
+            FROM DaQa.MasterIndex
+            WHERE SourceDocumentID = @ProcedureName
+            AND DocumentTitle LIKE 'SP-%'
+            AND Status = 'Active'",
+            new { ProcedureName = procedureName });
+
+        return exists > 0;
+    }
+
+    /// <inheritdoc/>
+    public async Task<string> CreateOrUpdateSPDocumentationAsync(
+        string procedureName, 
+        string changeDocId, 
+        CancellationToken cancellationToken = default)
+    {
+        var exists = await SPDocumentationExistsAsync(procedureName, cancellationToken);
+        
+        if (exists)
+        {
+            return await UpdateSPDocumentationAsync(procedureName, changeDocId, cancellationToken);
+        }
+        else
+        {
+            return await CreateSPDocumentationAsync(procedureName, changeDocId, cancellationToken);
+        }
+    }
+
+    private async Task<string> CreateSPDocumentationAsync(
+        string procedureName, 
+        string changeDocId, 
+        CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Creating new SP documentation for {ProcedureName}", procedureName);
+
+        var procData = await GetProcedureMetadataAsync(procedureName, cancellationToken);
+        var complexityScore = await CalculateComplexityScoreAsync(procData.Definition, cancellationToken);
+        
+        var isQA = procedureName.Contains("_QA", StringComparison.OrdinalIgnoreCase) ||
+                   procedureName.Contains("_Test", StringComparison.OrdinalIgnoreCase);
+
+        var spDocId = $"SP-{await GetNextSPDocIdAsync(cancellationToken):D4}";
+        
+        var folderPath = Path.Combine(_outputPath, "StoredProcedures", procData.Schema);
+        Directory.CreateDirectory(folderPath);
+        
+        var fileName = $"{spDocId}_{SanitizeFileName(procedureName)}.docx";
+        var filePath = Path.Combine(folderPath, fileName);
+
+        // Generate the actual OpenXML document
+        var spTemplateData = await BuildStoredProcedureDataAsync(procData, complexityScore, isQA, "1.0", changeDocId, cancellationToken);
+        
+        using var documentStream = await _docGeneratorService.GenerateDocumentAsync("StoredProcedure", spTemplateData);
+        await File.WriteAllBytesAsync(filePath, documentStream.ToArray(), cancellationToken);
+
+        _logger.LogInformation("Generated SP documentation at {FilePath}", filePath);
+
+        await CreateMasterIndexEntryForSPAsync(spDocId, procedureName, filePath, "1.0", changeDocId, cancellationToken);
+
+        return spDocId;
+    }
+
+    private async Task<string> UpdateSPDocumentationAsync(
+        string procedureName, 
+        string changeDocId, 
+        CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Updating existing SP documentation for {ProcedureName}", procedureName);
+
+        var existingDoc = await GetExistingSPDocAsync(procedureName, cancellationToken);
+        
+        var currentVersion = decimal.Parse(existingDoc.Version);
+        var newVersion = (currentVersion + 0.1m).ToString("F1");
+
+        var procData = await GetProcedureMetadataAsync(procedureName, cancellationToken);
+        var complexityScore = await CalculateComplexityScoreAsync(procData.Definition, cancellationToken);
+
+        var isQA = procedureName.Contains("_QA", StringComparison.OrdinalIgnoreCase) ||
+                   procedureName.Contains("_Test", StringComparison.OrdinalIgnoreCase);
+
+        var folderPath = Path.Combine(_outputPath, "StoredProcedures", procData.Schema);
+        var fileName = $"{existingDoc.DocId}_{SanitizeFileName(procedureName)}_v{newVersion.Replace(".", "_")}.docx";
+        var filePath = Path.Combine(folderPath, fileName);
+
+        // Get existing version history for the updated document
+        var versionHistory = await GetVersionHistoryAsync(existingDoc.IndexId, cancellationToken);
+
+        // Generate the updated OpenXML document
+        var spTemplateData = await BuildStoredProcedureDataAsync(procData, complexityScore, isQA, newVersion, changeDocId, cancellationToken, versionHistory);
+        
+        using var documentStream = await _docGeneratorService.GenerateDocumentAsync("StoredProcedure", spTemplateData);
+        await File.WriteAllBytesAsync(filePath, documentStream.ToArray(), cancellationToken);
+
+        _logger.LogInformation("Updated SP documentation to version {Version} at {FilePath}", newVersion, filePath);
+
+        await UpdateMasterIndexVersionAsync(existingDoc.IndexId, newVersion, filePath, changeDocId, cancellationToken);
+        await AddVersionHistoryEntryAsync(existingDoc.IndexId, newVersion, changeDocId, cancellationToken);
+
+        return existingDoc.DocId;
+    }
+
+    /// <inheritdoc/>
+    public async Task<int> CalculateComplexityScoreAsync(string procedureCode, CancellationToken cancellationToken = default)
+    {
+        var score = 0;
+
+        // Line count complexity
+        var lines = procedureCode.Split('\n').Where(l => !string.IsNullOrWhiteSpace(l) && !l.TrimStart().StartsWith("--")).Count();
+        if (lines < 50) score += 5;
+        else if (lines < 150) score += 10;
+        else if (lines < 300) score += 15;
+        else score += 20;
+
+        // CTE complexity
+        var cteCount = Regex.Matches(procedureCode, @"\bWITH\s+\w+\s+AS\s*\(", RegexOptions.IgnoreCase).Count;
+        score += Math.Min(cteCount * 5, 15);
+
+        // Join complexity
+        var joinCount = Regex.Matches(procedureCode, @"\b(INNER|LEFT|RIGHT|FULL|CROSS)\s+JOIN\b", RegexOptions.IgnoreCase).Count;
+        score += Math.Min(joinCount * 3, 15);
+
+        // Cursor complexity (high complexity indicator)
+        var cursorCount = Regex.Matches(procedureCode, @"\bDECLARE\s+\w+\s+CURSOR\b", RegexOptions.IgnoreCase).Count;
+        score += Math.Min(cursorCount * 10, 20);
+
+        // Dynamic SQL complexity
+        if (Regex.IsMatch(procedureCode, @"\bEXEC\s*\(|sp_executesql", RegexOptions.IgnoreCase))
+            score += 10;
+
+        // Temporary table complexity
+        var tempTableCount = Regex.Matches(procedureCode, @"#\w+").Count;
+        score += Math.Min(tempTableCount * 3, 10);
+
+        // Transaction complexity
+        if (Regex.IsMatch(procedureCode, @"\bBEGIN\s+TRAN", RegexOptions.IgnoreCase))
+            score += 5;
+
+        // Error handling complexity (positive indicator)
+        if (Regex.IsMatch(procedureCode, @"\bBEGIN\s+TRY", RegexOptions.IgnoreCase))
+            score += 5;
+
+        return Math.Min(score, 100);
+    }
+
+    private async Task<StoredProcedureTemplate.StoredProcedureData> BuildStoredProcedureDataAsync(
+        ProcedureMetadata procData, 
+        int complexityScore, 
+        bool isQA, 
+        string version,
+        string changeDocId,
+        CancellationToken cancellationToken,
+        List<StoredProcedureTemplate.VersionHistoryEntry>? existingHistory = null)
+    {
+        // Extract parameters from procedure definition
+        var parameters = await ExtractParametersAsync(procData.Definition, cancellationToken);
+        
+        // Get recent changes (up to 5)
+        var recentChanges = await GetRecentChangesAsync(procData.Name, cancellationToken);
+        
+        // Build version history (combine existing with current change)
+        var versionHistory = existingHistory ?? new List<StoredProcedureTemplate.VersionHistoryEntry>();
+        
+        // Add current change to history
+        var changeSummary = await GetChangeSummaryFromDocIdAsync(changeDocId, cancellationToken);
+        versionHistory.Insert(0, new StoredProcedureTemplate.VersionHistoryEntry
+        {
+            Version = version,
+            Date = DateTime.Now.ToString("yyyy-MM-dd"),
+            ChangedBy = "System",
+            Changes = changeSummary,
+            RefDoc = changeDocId
+        });
+
+        // Extract dependencies if complexity is high enough
+        StoredProcedureTemplate.DependencyInfo? dependencies = null;
+        if (complexityScore > 30)
+        {
+            dependencies = await ExtractDependenciesAsync(procData.Definition, cancellationToken);
+        }
+
+        // Generate usage examples
+        var usageExamples = GenerateUsageExamples(procData.Name, procData.Schema, parameters);
+
+        // Generate what's new text for updated versions
+        string? whatsNew = null;
+        if (version != "1.0" && recentChanges.Any())
+        {
+            whatsNew = recentChanges.First().Summary;
+        }
+
+        return new StoredProcedureTemplate.StoredProcedureData
+        {
+            SpName = procData.Name,
+            Version = version,
+            CreatedDate = procData.CreatedDate.ToString("yyyy-MM-dd"),
+            CreatedBy = "Database Team",
+            Schema = procData.Schema,
+            ObjectType = procData.ObjectType,
+            Purpose = GeneratePurposeFromName(procData.Name, isQA),
+            RecentChanges = recentChanges,
+            WhatsNew = whatsNew,
+            Parameters = parameters,
+            LogicFlow = GenerateLogicFlow(procData.Definition, complexityScore),
+            Dependencies = dependencies,
+            UsageExamples = usageExamples,
+            PerformanceNotes = complexityScore > 50 ? GeneratePerformanceNotes(procData.Definition) : null,
+            ErrorHandling = complexityScore > 40 ? GenerateErrorHandlingNotes(procData.Definition) : null,
+            FullVersionHistory = versionHistory,
+            ComplexityScore = complexityScore,
+            IsQA = isQA
+        };
+    }
+
+    private async Task<List<StoredProcedureTemplate.ParameterInfo>> ExtractParametersAsync(
+        string procedureDefinition, 
+        CancellationToken cancellationToken)
+    {
+        var parameters = new List<StoredProcedureTemplate.ParameterInfo>();
+        
+        // Extract parameters using regex pattern
+        var paramPattern = @"@(\w+)\s+([\w\(\),\s]+?)(?=\s*=|\s*,|\s*AS|\s*$)";
+        var matches = Regex.Matches(procedureDefinition, paramPattern, RegexOptions.IgnoreCase | RegexOptions.Multiline);
+        
+        foreach (Match match in matches)
+        {
+            var paramName = "@" + match.Groups[1].Value;
+            var paramType = match.Groups[2].Value.Trim();
+            
+            // Extract default value if present
+            string? defaultValue = null;
+            var defaultPattern = $@"{Regex.Escape(paramName)}\s+{Regex.Escape(paramType)}\s*=\s*([^,\s]+)";
+            var defaultMatch = Regex.Match(procedureDefinition, defaultPattern, RegexOptions.IgnoreCase);
+            if (defaultMatch.Success)
+            {
+                defaultValue = defaultMatch.Groups[1].Value;
+            }
+            
+            parameters.Add(new StoredProcedureTemplate.ParameterInfo
+            {
+                Name = paramName,
+                Type = paramType,
+                Description = GenerateParameterDescription(paramName, paramType),
+                DefaultValue = defaultValue
+            });
+        }
+        
+        return parameters;
+    }
+
+    private async Task<List<StoredProcedureTemplate.ChangeEntry>> GetRecentChangesAsync(
+        string procedureName, 
+        CancellationToken cancellationToken)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        var changes = await connection.QueryAsync<StoredProcedureTemplate.ChangeEntry>(@"
+            SELECT TOP 5
+                CONVERT(varchar, dvh.ChangeDate, 23) as Date,
+                dvh.ChangeDescription as Summary,
+                dvh.ReferenceDocId as RefDoc
+            FROM DaQa.DocumentVersionHistory dvh
+            INNER JOIN DaQa.MasterIndex mi ON dvh.IndexID = mi.IndexID
+            WHERE mi.SourceDocumentID = @ProcedureName
+            AND mi.DocumentTitle LIKE 'SP-%'
+            ORDER BY dvh.ChangeDate DESC",
+            new { ProcedureName = procedureName });
+
+        return changes.ToList();
+    }
+
+    private async Task<List<StoredProcedureTemplate.VersionHistoryEntry>> GetVersionHistoryAsync(
+        string indexId, 
+        CancellationToken cancellationToken)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        var history = await connection.QueryAsync<StoredProcedureTemplate.VersionHistoryEntry>(@"
+            SELECT 
+                Version,
+                CONVERT(varchar, ChangeDate, 23) as Date,
+                ChangedBy,
+                ChangeDescription as Changes,
+                ReferenceDocId as RefDoc
+            FROM DaQa.DocumentVersionHistory
+            WHERE IndexID = @IndexId
+            ORDER BY ChangeDate DESC",
+            new { IndexId = indexId });
+
+        return history.ToList();
+    }
+
+    private async Task<StoredProcedureTemplate.DependencyInfo> ExtractDependenciesAsync(
+        string procedureDefinition, 
+        CancellationToken cancellationToken)
+    {
+        var dependencies = new StoredProcedureTemplate.DependencyInfo
+        {
+            Tables = new List<string>(),
+            Procedures = new List<string>()
+        };
+
+        // Extract table references
+        var tablePattern = @"\b(?:FROM|JOIN|UPDATE|INSERT\s+INTO|DELETE\s+FROM)\s+(\[?\w+\]?\.\[?\w+\]?|\[?\w+\]?)";
+        var tableMatches = Regex.Matches(procedureDefinition, tablePattern, RegexOptions.IgnoreCase);
+        
+        foreach (Match match in tableMatches)
+        {
+            var tableName = match.Groups[1].Value.Trim('[', ']');
+            if (!dependencies.Tables.Contains(tableName) && !tableName.StartsWith("#") && !tableName.StartsWith("@"))
+            {
+                dependencies.Tables.Add(tableName);
+            }
+        }
+
+        // Extract stored procedure calls
+        var procPattern = @"\bEXEC(?:UTE)?\s+(\[?\w+\]?\.\[?\w+\]?|\[?\w+\]?)";
+        var procMatches = Regex.Matches(procedureDefinition, procPattern, RegexOptions.IgnoreCase);
+        
+        foreach (Match match in procMatches)
+        {
+            var procName = match.Groups[1].Value.Trim('[', ']');
+            if (!dependencies.Procedures.Contains(procName))
+            {
+                dependencies.Procedures.Add(procName);
+            }
+        }
+
+        return dependencies;
+    }
+
+    private List<StoredProcedureTemplate.UsageExample> GenerateUsageExamples(
+        string procedureName, 
+        string schema, 
+        List<StoredProcedureTemplate.ParameterInfo> parameters)
+    {
+        var examples = new List<StoredProcedureTemplate.UsageExample>();
+
+        if (parameters.Any())
+        {
+            var exampleCode = $"EXEC {schema}.{procedureName}";
+            var paramList = parameters.Select(p => $"    {p.Name} = {GetExampleValue(p.Type)}").ToList();
+            
+            if (paramList.Any())
+            {
+                exampleCode += "\n" + string.Join(",\n", paramList);
+            }
+
+            examples.Add(new StoredProcedureTemplate.UsageExample
+            {
+                Title = "Basic Usage",
+                Code = exampleCode,
+                Explanation = $"Standard execution of {procedureName} with typical parameter values."
+            });
+        }
+        else
+        {
+            examples.Add(new StoredProcedureTemplate.UsageExample
+            {
+                Title = "Basic Usage",
+                Code = $"EXEC {schema}.{procedureName}",
+                Explanation = $"Execute {procedureName} (no parameters required)."
+            });
+        }
+
+        return examples;
+    }
+
+    private List<StoredProcedureTemplate.LogicStep> GenerateLogicFlow(string procedureDefinition, int complexityScore)
+    {
+        var steps = new List<StoredProcedureTemplate.LogicStep>();
+
+        // Basic logic flow based on common patterns
+        if (procedureDefinition.Contains("BEGIN TRY", StringComparison.OrdinalIgnoreCase))
+        {
+            steps.Add(new StoredProcedureTemplate.LogicStep
+            {
+                Title = "Error Handling Setup",
+                Description = "Initialize error handling with TRY-CATCH block for robust execution."
+            });
+        }
+
+        if (procedureDefinition.Contains("BEGIN TRAN", StringComparison.OrdinalIgnoreCase))
+        {
+            steps.Add(new StoredProcedureTemplate.LogicStep
+            {
+                Title = "Transaction Management",
+                Description = "Begin transaction to ensure data consistency across operations."
+            });
+        }
+
+        steps.Add(new StoredProcedureTemplate.LogicStep
+        {
+            Title = "Input Validation",
+            Description = "Validate input parameters and check for required values."
+        });
+
+        steps.Add(new StoredProcedureTemplate.LogicStep
+        {
+            Title = "Main Processing",
+            Description = "Execute primary business logic and data manipulation operations."
+        });
+
+        if (procedureDefinition.Contains("COMMIT", StringComparison.OrdinalIgnoreCase))
+        {
+            steps.Add(new StoredProcedureTemplate.LogicStep
+            {
+                Title = "Transaction Completion",
+                Description = "Commit transaction if all operations complete successfully."
+            });
+        }
+
+        return steps;
+    }
+
+    private string GeneratePurposeFromName(string procedureName, bool isQA)
+    {
+        var basePurpose = procedureName switch
+        {
+            var name when name.Contains("_Insert", StringComparison.OrdinalIgnoreCase) => $"Inserts new records into the database with data validation and integrity checks.",
+            var name when name.Contains("_Update", StringComparison.OrdinalIgnoreCase) => $"Updates existing records with new values while maintaining data consistency.",
+            var name when name.Contains("_Delete", StringComparison.OrdinalIgnoreCase) => $"Safely removes records from the database with proper constraint validation.",
+            var name when name.Contains("_Get", StringComparison.OrdinalIgnoreCase) => $"Retrieves specific data records based on provided criteria.",
+            var name when name.Contains("_Report", StringComparison.OrdinalIgnoreCase) => $"Generates analytical reports with aggregated data and business metrics.",
+            _ => $"Performs specialized database operations for {procedureName.Replace("usp_", "").Replace("_", " ")}."
+        };
+
+        return isQA ? $"QA validation procedure that verifies data integrity and quality. {basePurpose}" : basePurpose;
+    }
+
+    private string GenerateParameterDescription(string paramName, string paramType)
+    {
+        return paramName.ToLowerInvariant() switch
+        {
+            var name when name.Contains("id") => $"Unique identifier for the related entity",
+            var name when name.Contains("date") => $"Date value for filtering or record creation",
+            var name when name.Contains("name") => $"Name or title field for identification",
+            var name when name.Contains("email") => $"Email address for contact information",
+            var name when name.Contains("phone") => $"Phone number for contact purposes",
+            var name when name.Contains("amount") => $"Monetary or quantity amount value",
+            var name when name.Contains("status") => $"Status indicator or state flag",
+            _ => $"Parameter of type {paramType} for procedure execution"
+        };
+    }
+
+    private string GetExampleValue(string paramType)
+    {
+        return paramType.ToUpperInvariant() switch
+        {
+            var type when type.Contains("INT") => "12345",
+            var type when type.Contains("VARCHAR") || type.Contains("CHAR") || type.Contains("TEXT") => "'Sample Value'",
+            var type when type.Contains("DATE") || type.Contains("TIME") => "'2024-12-03'",
+            var type when type.Contains("BIT") => "1",
+            var type when type.Contains("DECIMAL") || type.Contains("FLOAT") || type.Contains("MONEY") => "100.00",
+            _ => "NULL"
+        };
+    }
+
+    private string? GeneratePerformanceNotes(string procedureDefinition)
+    {
+        var notes = new List<string>();
+
+        if (procedureDefinition.Contains("CURSOR", StringComparison.OrdinalIgnoreCase))
+        {
+            notes.Add("Contains cursor operations which may impact performance on large datasets.");
+        }
+
+        if (Regex.Matches(procedureDefinition, @"\bJOIN\b", RegexOptions.IgnoreCase).Count > 3)
+        {
+            notes.Add("Multiple table joins may require index optimization for best performance.");
+        }
+
+        if (procedureDefinition.Contains("#", StringComparison.OrdinalIgnoreCase))
+        {
+            notes.Add("Uses temporary tables - consider sufficient tempdb space for concurrent executions.");
+        }
+
+        return notes.Any() ? string.Join(" ", notes) : null;
+    }
+
+    private string? GenerateErrorHandlingNotes(string procedureDefinition)
+    {
+        var notes = new List<string>();
+
+        if (procedureDefinition.Contains("TRY", StringComparison.OrdinalIgnoreCase))
+        {
+            notes.Add("Implements TRY-CATCH error handling for graceful failure management.");
+        }
+
+        if (procedureDefinition.Contains("RAISERROR", StringComparison.OrdinalIgnoreCase))
+        {
+            notes.Add("Uses RAISERROR for custom error reporting with specific error codes.");
+        }
+
+        if (procedureDefinition.Contains("ROLLBACK", StringComparison.OrdinalIgnoreCase))
+        {
+            notes.Add("Includes transaction rollback capabilities to maintain data consistency on errors.");
+        }
+
+        return notes.Any() ? string.Join(" ", notes) : null;
+    }
+
+    private async Task<ProcedureMetadata> GetProcedureMetadataAsync(string procedureName, CancellationToken cancellationToken)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        var data = await connection.QueryFirstOrDefaultAsync<ProcedureMetadata>(@"
+            SELECT 
+                s.name AS [Schema],
+                o.name AS Name,
+                o.type_desc AS ObjectType,
+                o.create_date AS CreatedDate,
+                o.modify_date AS ModifiedDate,
+                m.definition AS Definition
+            FROM sys.objects o
+            INNER JOIN sys.schemas s ON o.schema_id = s.schema_id
+            INNER JOIN sys.sql_modules m ON o.object_id = m.object_id
+            WHERE o.name = @ProcedureName
+            AND o.type IN ('P', 'PC')",
+            new { ProcedureName = procedureName });
+
+        if (data == null)
+            throw new InvalidOperationException($"Procedure {procedureName} not found");
+
+        return data;
+    }
+
+    private async Task<ExistingSPDoc> GetExistingSPDocAsync(string procedureName, CancellationToken cancellationToken)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        var doc = await connection.QueryFirstOrDefaultAsync<ExistingSPDoc>(@"
+            SELECT 
+                IndexID,
+                DocumentTitle AS DocId,
+                DocumentVersion AS Version,
+                SourceFilePath AS FilePath
+            FROM DaQa.MasterIndex
+            WHERE SourceDocumentID = @ProcedureName
+            AND DocumentTitle LIKE 'SP-%'
+            AND Status = 'Active'",
+            new { ProcedureName = procedureName });
+
+        if (doc == null)
+            throw new InvalidOperationException($"Existing SP doc not found for {procedureName}");
+
+        return doc;
+    }
+
+    private async Task<int> GetNextSPDocIdAsync(CancellationToken cancellationToken)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        var maxId = await connection.QueryFirstOrDefaultAsync<int?>(@"
+            SELECT MAX(CAST(SUBSTRING(DocumentTitle, 4, 4) AS INT))
+            FROM DaQa.MasterIndex
+            WHERE DocumentTitle LIKE 'SP-%'");
+
+        return (maxId ?? 0) + 1;
+    }
+
+    private async Task CreateMasterIndexEntryForSPAsync(
+        string spDocId, 
+        string procedureName, 
+        string filePath, 
+        string version,
+        string changeDocId,
+        CancellationToken cancellationToken)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        await connection.ExecuteAsync(@"
+            INSERT INTO DaQa.MasterIndex (
+                SourceSystem, SourceDocumentID, SourceFilePath, DocumentTitle,
+                DocumentVersion, Status, CreatedDate, CreatedBy, RelatedDocuments
+            ) VALUES (
+                'StoredProcedureDocumentation', @ProcedureName, @FilePath, @SpDocId,
+                @Version, 'Active', GETUTCDATE(), 'System', @ChangeDocId
+            )",
+            new
+            {
+                ProcedureName = procedureName,
+                FilePath = filePath,
+                SpDocId = spDocId,
+                Version = version,
+                ChangeDocId = changeDocId
+            });
+    }
+
+    private async Task UpdateMasterIndexVersionAsync(
+        string indexId, 
+        string newVersion, 
+        string filePath,
+        string changeDocId,
+        CancellationToken cancellationToken)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        await connection.ExecuteAsync(@"
+            UPDATE DaQa.MasterIndex
+            SET DocumentVersion = @NewVersion,
+                SourceFilePath = @FilePath,
+                ModifiedDate = GETUTCDATE(),
+                ModifiedBy = 'System',
+                RelatedDocuments = CASE 
+                    WHEN RelatedDocuments IS NULL THEN @ChangeDocId
+                    ELSE RelatedDocuments + ',' + @ChangeDocId
+                END
+            WHERE IndexID = @IndexId",
+            new
+            {
+                IndexId = indexId,
+                NewVersion = newVersion,
+                FilePath = filePath,
+                ChangeDocId = changeDocId
+            });
+    }
+
+    private async Task AddVersionHistoryEntryAsync(
+        string indexId, 
+        string version, 
+        string changeDocId,
+        CancellationToken cancellationToken)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        var changeSummary = await GetChangeSummaryFromDocIdAsync(changeDocId, cancellationToken);
+
+        await connection.ExecuteAsync(@"
+            INSERT INTO DaQa.DocumentVersionHistory (
+                IndexID, Version, ChangeDate, ChangedBy, ChangeDescription, ReferenceDocId
+            ) VALUES (
+                @IndexId, @Version, GETUTCDATE(), 'System', @ChangeSummary, @ChangeDocId
+            )",
+            new
+            {
+                IndexId = indexId,
+                Version = version,
+                ChangeSummary = changeSummary,
+                ChangeDocId = changeDocId
+            });
+    }
+
+    private async Task<string> GetChangeSummaryFromDocIdAsync(string changeDocId, CancellationToken cancellationToken)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        var summary = await connection.QueryFirstOrDefaultAsync<string>(@"
+            SELECT ChangeApplied
+            FROM DaQa.DocumentChanges
+            WHERE DocId = @ChangeDocId",
+            new { ChangeDocId = changeDocId });
+
+        return summary ?? "Documentation update";
+    }
+
+    private string SanitizeFileName(string name)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        return string.Join("_", name.Split(invalid, StringSplitOptions.RemoveEmptyEntries));
+    }
+}
+
+/// <summary>
+/// Metadata for a stored procedure retrieved from system catalogs.
+/// </summary>
+public class ProcedureMetadata
+{
+    public string Schema { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string ObjectType { get; set; } = string.Empty;
+    public DateTime CreatedDate { get; set; }
+    public DateTime ModifiedDate { get; set; }
+    public string Definition { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Information about an existing stored procedure document in the system.
+/// </summary>
+public class ExistingSPDoc
+{
+    public string IndexId { get; set; } = string.Empty;
+    public string DocId { get; set; } = string.Empty;
+    public string Version { get; set; } = string.Empty;
+    public string FilePath { get; set; } = string.Empty;
+}
+#endif // End temporarily disabled section
+}

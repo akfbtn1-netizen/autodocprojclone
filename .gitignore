@@ -1,0 +1,72 @@
+## Visual Studio temporary files
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio cache
+.vs/
+
+# Visual Studio Code
+.vscode/
+
+# .NET Core
+project.lock.json
+artifacts/
+
+# User-specific files
+appsettings.Development.json
+appsettings.Local.json
+*.local.json
+
+# Secrets
+secrets.json
+*.pfx
+*.key
+
+# Environment variables
+.env
+.env.local
+
+# Test Results
+TestResults/
+*.trx
+*.coverage
+
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Frontend build outputs
+/frontend/dist/
+/frontend/build/
+
+# Node.js dependencies and files
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+node-v*-win-x64/
+
+# Frontend build outputs
+/frontend/dist/
+/frontend/build/
+
+# OS files
+.DS_Store
+Thumbs.db.mcp/

@@ -1,0 +1,122 @@
+{
+  "testScenarios": [
+    {
+      "id": 1,
+      "name": "Tier 1 Complex Table Documentation",
+      "description": "High-confidence complex table requiring comprehensive documentation",
+      "excelChangeEntry": {
+        "databaseName": "IRFS1_Testing",
+        "columnName": "AccountHierarchy",
+        "masterIndexId": null,
+        "createdBy": "DataArchitect",
+        "changeType": "NEW_TABLE",
+        "changeDescription": "Multi-level account hierarchy with complex relationships",
+        "businessJustification": "Support regulatory reporting requirements for Basel III compliance",
+        "confidenceScore": 0.92
+      },
+      "expectedTier": 1,
+      "expectedDocumentType": "TABLE_DOCUMENTATION",
+      "expectedAIModel": "gpt-4.1",
+      "mockSchemaMetadata": {
+        "objectName": "AccountHierarchy",
+        "objectType": "TABLE",
+        "schemaName": "Regulatory",
+        "databaseName": "IRFS1_Testing",
+        "columnCount": 15,
+        "rowCount": 250000,
+        "isPrimaryKey": false,
+        "hasForeignKeys": true,
+        "indexCount": 8,
+        "constraints": ["PK_AccountHierarchy", "FK_ParentAccount", "CHK_HierarchyLevel"],
+        "businessCriticality": "HIGH",
+        "dataClassification": "CONFIDENTIAL",
+        "piiIndicator": false,
+        "businessDomain": "Finance_Regulatory"
+      }
+    },
+    {
+      "id": 2,
+      "name": "Tier 2 Standard View Documentation", 
+      "description": "Medium-confidence view requiring standard documentation",
+      "excelChangeEntry": {
+        "databaseName": "DataMart_Analytics",
+        "columnName": "SalesMetricsView",
+        "masterIndexId": null,
+        "createdBy": "BusinessAnalyst",
+        "changeType": "NEW_VIEW",
+        "changeDescription": "Aggregated sales metrics for management reporting",
+        "businessJustification": "Monthly sales reporting dashboard requirement",
+        "confidenceScore": 0.78
+      },
+      "expectedTier": 2,
+      "expectedDocumentType": "VIEW_DOCUMENTATION",
+      "expectedAIModel": "gpt-4.1",
+      "mockSchemaMetadata": {
+        "objectName": "SalesMetricsView",
+        "objectType": "VIEW",
+        "schemaName": "Analytics",
+        "databaseName": "DataMart_Analytics",
+        "columnCount": 8,
+        "rowCount": null,
+        "isPrimaryKey": false,
+        "hasForeignKeys": false,
+        "indexCount": 0,
+        "constraints": [],
+        "businessCriticality": "MEDIUM",
+        "dataClassification": "INTERNAL",
+        "piiIndicator": false,
+        "businessDomain": "Sales_Analytics"
+      }
+    },
+    {
+      "id": 3,
+      "name": "Tier 3 Lightweight Column Documentation",
+      "description": "Lower-confidence simple column requiring lightweight documentation",
+      "excelChangeEntry": {
+        "databaseName": "Staging_ETL",
+        "columnName": "LoadTimestamp",
+        "masterIndexId": null,
+        "createdBy": "ETLDeveloper", 
+        "changeType": "COLUMN_ADDITION",
+        "changeDescription": "Timestamp column for ETL tracking",
+        "businessJustification": "Operational monitoring of data load processes",
+        "confidenceScore": 0.65
+      },
+      "expectedTier": 3,
+      "expectedDocumentType": "COLUMN_DOCUMENTATION",
+      "expectedAIModel": "gpt-4.1",
+      "mockSchemaMetadata": {
+        "objectName": "StagingTable_Customer",
+        "objectType": "TABLE",
+        "schemaName": "ETL",
+        "databaseName": "Staging_ETL",
+        "columnCount": 25,
+        "rowCount": 1000000,
+        "isPrimaryKey": false,
+        "hasForeignKeys": false,
+        "indexCount": 2,
+        "constraints": ["DF_LoadTimestamp"],
+        "businessCriticality": "LOW",
+        "dataClassification": "INTERNAL",
+        "piiIndicator": false,
+        "businessDomain": "Data_Operations"
+      }
+    }
+  ],
+  "testConfiguration": {
+    "apiBaseUrl": "http://localhost:5195",
+    "enableRealAI": false,
+    "mockAIResponses": true,
+    "createTestFiles": true,
+    "validateDocumentProperties": true,
+    "checkApprovalQueue": true
+  },
+  "expectedOutcomes": {
+    "documentsGenerated": 3,
+    "approvalQueueEntries": 3,
+    "masterIndexRecords": 3,
+    "confidenceScoreRange": [0.65, 0.92],
+    "tierDistribution": {"1": 1, "2": 1, "3": 1},
+    "documentTypes": ["TABLE_DOCUMENTATION", "VIEW_DOCUMENTATION", "COLUMN_DOCUMENTATION"]
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "docId": "EN-9999",
+  "jira": "BAS-TEST",
+  "status": "Completed",
+  "date": "2025-12-09",
+  "table": "test_table",
+  "column": "test_column",
+  "purpose": "Testing Python template fix"
+}

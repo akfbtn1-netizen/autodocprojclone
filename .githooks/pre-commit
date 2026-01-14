@@ -1,0 +1,95 @@
+#!/usr/bin/env pwsh
+# Enterprise Pre-Commit Quality Gate
+# Blocks commits that don't meet enterprise quality standards
+
+param(
+    [int]$QualityThreshold = 85
+)
+
+Write-Host "🔒 Enterprise Quality Gate: Pre-Commit Validation" -ForegroundColor Cyan
+
+# Get staged files
+$stagedFiles = git diff --cached --name-only --diff-filter=ACM | Where-Object { $_ -match '\.(cs|js|ts|ps1|sql|json|xml|yaml)$' }
+
+if (-not $stagedFiles) {
+    Write-Host "✅ No code files staged for commit" -ForegroundColor Green
+    exit 0
+}
+
+Write-Host "📋 Analyzing $($stagedFiles.Count) staged files..." -ForegroundColor Yellow
+
+$criticalIssues = @()
+$qualityScore = 100
+
+# Quality checks for each staged file
+foreach ($file in $stagedFiles) {
+    if (-not (Test-Path $file)) { continue }
+    
+    $content = Get-Content $file -Raw
+    if (-not $content) { continue }
+    
+    Write-Host "  🔍 Checking: $file" -ForegroundColor Gray
+    
+    # Critical Quality Checks
+    if ($file -match '\.cs$') {
+        # Missing XML documentation
+        if ($content -match 'public\s+(class|interface|enum|struct|delegate)\s+\w+' -and 
+            $content -notmatch '/// <summary>') {
+            $criticalIssues += "❌ $file: Missing XML documentation for public types"
+            $qualityScore -= 15
+        }
+        
+        # ConfigureAwait violations
+        if ($content -match 'await\s+[^;]+(?<!\.ConfigureAwait\(false\))\s*;') {
+            $criticalIssues += "⚠️ $file: Missing ConfigureAwait(false) on async calls"
+            $qualityScore -= 10
+        }
+        
+        # Exception handling issues
+        if ($content -match 'catch\s*\(\s*Exception\s+\w*\s*\)\s*{[^}]*}' -and 
+            $content -notmatch 'catch\s*\([^)]+\)\s*{\s*[^}]*throw\s*;') {
+            $criticalIssues += "🚨 $file: Swallowing exceptions without proper handling"
+            $qualityScore -= 20
+        }
+        
+        # Deadlock potential
+        if ($content -match '\.Result\b' -or $content -match '\.GetAwaiter\(\)\.GetResult\(\)') {
+            $criticalIssues += "💀 $file: Potential deadlock - synchronous wait on async operation"
+            $qualityScore -= 25
+        }
+    }
+    
+    # General code quality
+    if ($content -match 'TODO|FIXME|HACK|XXX') {
+        $criticalIssues += "📝 $file: Contains TODO/FIXME comments"
+        $qualityScore -= 5
+    }
+    
+    if ($content -match 'Console\.WriteLine|console\.log' -and $file -notmatch 'Program\.cs') {
+        $criticalIssues += "🖨️ $file: Contains debug print statements"
+        $qualityScore -= 10
+    }
+}
+
+# Display results
+Write-Host "`n📊 Quality Analysis Results:" -ForegroundColor Cyan
+Write-Host "Quality Score: $qualityScore/100" -ForegroundColor $(if ($qualityScore -ge $QualityThreshold) { "Green" } else { "Red" })
+
+if ($criticalIssues.Count -gt 0) {
+    Write-Host "`n🚨 Critical Issues Found:" -ForegroundColor Red
+    foreach ($issue in $criticalIssues) {
+        Write-Host "  $issue" -ForegroundColor Yellow
+    }
+}
+
+# Quality gate decision
+if ($qualityScore -lt $QualityThreshold) {
+    Write-Host "`n❌ COMMIT BLOCKED: Quality score $qualityScore is below threshold $QualityThreshold" -ForegroundColor Red
+    Write-Host "Please fix the quality issues before committing." -ForegroundColor Red
+    Write-Host "Enterprise standards require a minimum quality score of $QualityThreshold/100" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "`n✅ Quality Gate PASSED: Code meets enterprise standards" -ForegroundColor Green
+Write-Host "Commit approved with quality score: $qualityScore/100" -ForegroundColor Green
+exit 0

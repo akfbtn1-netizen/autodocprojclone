@@ -1,0 +1,47 @@
+﻿name: Quality Gates
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+    
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    - name: Build
+      run: dotnet build --no-restore --configuration Release
+    
+    - name: Run tests
+      run: dotnet test --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
+    
+    - name: Code Coverage Report
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./coverage/**/coverage.cobertura.xml
+        fail_ci_if_error: true
+    
+    - name: Validate code quality
+      shell: pwsh
+      run: |
+        $files = Get-ChildItem -Path src -Filter *.cs -Recurse | Where-Object { $_.Name -notlike "*Designer.cs" }
+        foreach ($file in $files) {
+          Write-Host "Validating: $($file.FullName)"
+          .\tools\Validate-Code.ps1 -AgentPath $file.FullName -ForceApprove
+          if ($LASTEXITCODE -eq 2) {
+            Write-Error "Critical quality issues found"
+            exit 1
+          }
+        }

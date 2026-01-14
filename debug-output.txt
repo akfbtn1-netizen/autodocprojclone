@@ -1,0 +1,9 @@
+﻿node.exe : Claude Code was unable to find CLAUDE_CODE_GIT_BASH_PATH path 
+"C:\Program Files\Git\bin\bash.exe"
+At C:\PortableApps\nodejs\npm-global\claude.ps1:24 char:5
++     & "node$exe"  "$basedir/node_modules/@anthropic-ai/claude-code/cl ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Claude Code was...t\bin\bash.exe" 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

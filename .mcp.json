@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "enterprise-doc-platform": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["C:\\Projects\\EnterpriseDocumentationPlatform.V2\\.mcp\\enterprise-doc-platform.js"]
+    }
+  }
+}

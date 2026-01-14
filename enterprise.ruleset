@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RuleSet Name="Enterprise Quality Standards" Description="Comprehensive enterprise-grade quality rules for maximum code standards enforcement" ToolsVersion="17.0">
+  <IncludeAll Action="Warning" />
+  
+  <!-- Documentation Rules - STRICT ENFORCEMENT -->
+  <Rules AnalyzerId="StyleCop.Analyzers" RuleNamespace="StyleCop.Analyzers">
+    <Rule Id="SA1600" Action="Error" />   <!-- Elements should be documented -->
+    <Rule Id="SA1601" Action="Error" />   <!-- Partial elements should be documented -->
+    <Rule Id="SA1602" Action="Error" />   <!-- Enumeration items should be documented -->
+    <Rule Id="SA1615" Action="Error" />   <!-- Element return value should be documented -->
+    <Rule Id="SA1616" Action="Error" />   <!-- Element return value documentation should have text -->
+    <Rule Id="SA1617" Action="Error" />   <!-- Void return value should not be documented -->
+    <Rule Id="SA1618" Action="Error" />   <!-- Generic type parameters should be documented -->
+    <Rule Id="SA1619" Action="Error" />   <!-- Generic type parameters should be documented partial class -->
+    <Rule Id="SA1620" Action="Error" />   <!-- Generic type parameter documentation should match type parameters -->
+    <Rule Id="SA1621" Action="Error" />   <!-- Generic type parameter documentation should declare parameter name -->
+    <Rule Id="SA1622" Action="Error" />   <!-- Generic type parameter documentation should have text -->
+    <Rule Id="SA1623" Action="Error" />   <!-- Property summary documentation should match accessors -->
+    <Rule Id="SA1624" Action="Error" />   <!-- Property summary documentation should omit setter accessor with restricted access -->
+    <Rule Id="SA1625" Action="Error" />   <!-- Element documentation should not be copied and pasted -->
+    <Rule Id="SA1626" Action="Error" />   <!-- Single-line comments should not use documentation style slashes -->
+    <Rule Id="SA1627" Action="Error" />   <!-- Documentation text should not be empty -->
+    <Rule Id="SA1629" Action="Error" />   <!-- Documentation text should end with a period -->
+    <Rule Id="SA1633" Action="Error" />   <!-- File should have header -->
+    <Rule Id="SA1634" Action="Error" />   <!-- File header should show copyright -->
+    <Rule Id="SA1635" Action="Error" />   <!-- File header should have copyright text -->
+    <Rule Id="SA1636" Action="Error" />   <!-- File header copyright text should match -->
+    <Rule Id="SA1637" Action="Error" />   <!-- File header should contain file name -->
+    <Rule Id="SA1638" Action="Error" />   <!-- File header file name documentation should match file name -->
+    <Rule Id="SA1640" Action="Error" />   <!-- File header should have valid company text -->
+    <Rule Id="SA1641" Action="Error" />   <!-- File header company name text should match -->
+    <Rule Id="SA1642" Action="Error" />   <!-- Constructor summary documentation should begin with standard text -->
+    <Rule Id="SA1643" Action="Error" />   <!-- Destructor summary documentation should begin with standard text -->
+    <Rule Id="SA1644" Action="Error" />   <!-- Documentation headers should not contain blank lines -->
+    <Rule Id="SA1645" Action="Error" />   <!-- Included documentation file does not exist -->
+    <Rule Id="SA1646" Action="Error" />   <!-- Included documentation XPath does not exist -->
+    <Rule Id="SA1647" Action="Error" />   <!-- Include node does not contain valid file and path -->
+    <Rule Id="SA1648" Action="Error" />   <!-- Inheritdoc should be used with inheriting class -->
+    <Rule Id="SA1649" Action="Error" />   <!-- File name should match first type name -->
+    <Rule Id="SA1651" Action="Error" />   <!-- Do not use placeholder elements -->
+  </Rules>
+
+  <!-- Maintainability Rules - STRICT ENFORCEMENT -->
+  <Rules AnalyzerId="StyleCop.Analyzers" RuleNamespace="StyleCop.Analyzers">
+    <Rule Id="SA1119" Action="Error" />   <!-- Statement should not use unnecessary parenthesis -->
+    <Rule Id="SA1120" Action="Error" />   <!-- Comments should contain text -->
+    <Rule Id="SA1121" Action="Error" />   <!-- Use built-in type alias -->
+    <Rule Id="SA1122" Action="Error" />   <!-- Use string.Empty for empty strings -->
+    <Rule Id="SA1123" Action="Error" />   <!-- Do not place regions within elements -->
+    <Rule Id="SA1124" Action="Error" />   <!-- Do not use regions -->
+    <Rule Id="SA1125" Action="Error" />   <!-- Use shorthand for nullable types -->
+    <Rule Id="SA1127" Action="Error" />   <!-- Generic type constraints should be on their own line -->
+    <Rule Id="SA1128" Action="Error" />   <!-- Put constructor initializers on their own line -->
+    <Rule Id="SA1129" Action="Error" />   <!-- Do not use default value type constructor -->
+    <Rule Id="SA1130" Action="Error" />   <!-- Use lambda syntax -->
+    <Rule Id="SA1131" Action="Error" />   <!-- Use readable conditions -->
+    <Rule Id="SA1132" Action="Error" />   <!-- Do not combine fields -->
+    <Rule Id="SA1133" Action="Error" />   <!-- Do not combine attributes -->
+    <Rule Id="SA1134" Action="Error" />   <!-- Attributes should not share line -->
+    <Rule Id="SA1135" Action="Error" />   <!-- Using directives should be qualified -->
+    <Rule Id="SA1136" Action="Error" />   <!-- Enum values should be on separate lines -->
+    <Rule Id="SA1137" Action="Error" />   <!-- Elements should have the same indentation -->
+    <Rule Id="SA1139" Action="Error" />   <!-- Use literal suffix notation instead of casting -->
+  </Rules>
+
+  <!-- Layout Rules - STRICT ENFORCEMENT -->
+  <Rules AnalyzerId="StyleCop.Analyzers" RuleNamespace="StyleCop.Analyzers">
+    <Rule Id="SA1200" Action="Error" />   <!-- Using directives should be placed correctly -->
+    <Rule Id="SA1201" Action="Error" />   <!-- Elements should appear in the correct order -->
+    <Rule Id="SA1202" Action="Error" />   <!-- Elements should be ordered by access -->
+    <Rule Id="SA1203" Action="Error" />   <!-- Constants should appear before fields -->
+    <Rule Id="SA1204" Action="Error" />   <!-- Static elements should appear before instance elements -->
+    <Rule Id="SA1205" Action="Error" />   <!-- Partial elements should declare access -->
+    <Rule Id="SA1206" Action="Error" />   <!-- Declaration keywords should follow order -->
+    <Rule Id="SA1207" Action="Error" />   <!-- Protected should come before internal -->
+    <Rule Id="SA1208" Action="Error" />   <!-- System using directives should be placed before other using directives -->
+    <Rule Id="SA1209" Action="Error" />   <!-- Using alias directives should be placed after other using directives -->
+    <Rule Id="SA1210" Action="Error" />   <!-- Using directives should be ordered alphabetically by namespace -->
+    <Rule Id="SA1211" Action="Error" />   <!-- Using alias directives should be ordered alphabetically by alias name -->
+    <Rule Id="SA1212" Action="Error" />   <!-- Property accessors should follow order -->
+    <Rule Id="SA1213" Action="Error" />   <!-- Event accessors should follow order -->
+    <Rule Id="SA1214" Action="Error" />   <!-- Readonly fields should appear before non-readonly fields -->
+    <Rule Id="SA1216" Action="Error" />   <!-- Using static directives should be placed at the correct location -->
+    <Rule Id="SA1217" Action="Error" />   <!-- Using static directives should be ordered alphabetically -->
+  </Rules>
+
+  <!-- Naming Rules - STRICT ENFORCEMENT -->
+  <Rules AnalyzerId="StyleCop.Analyzers" RuleNamespace="StyleCop.Analyzers">
+    <Rule Id="SA1300" Action="Error" />   <!-- Element should begin with upper-case letter -->
+    <Rule Id="SA1301" Action="Error" />   <!-- Element should begin with lower-case letter -->
+    <Rule Id="SA1302" Action="Error" />   <!-- Interface names should begin with I -->
+    <Rule Id="SA1303" Action="Error" />   <!-- Const field names should begin with upper-case letter -->
+    <Rule Id="SA1304" Action="Error" />   <!-- Non-private readonly fields should begin with upper-case letter -->
+    <Rule Id="SA1305" Action="Error" />   <!-- Field names should not use Hungarian notation -->
+    <Rule Id="SA1306" Action="Error" />   <!-- Field names should begin with lower-case letter -->
+    <Rule Id="SA1307" Action="Error" />   <!-- Accessible fields should begin with upper-case letter -->
+    <Rule Id="SA1308" Action="Error" />   <!-- Variable names should not be prefixed -->
+    <Rule Id="SA1309" Action="Error" />   <!-- Field names should not begin with underscore -->
+    <Rule Id="SA1310" Action="Error" />   <!-- Field names should not contain underscore -->
+    <Rule Id="SA1311" Action="Error" />   <!-- Static readonly fields should begin with upper-case letter -->
+    <Rule Id="SA1312" Action="Error" />   <!-- Variable names should begin with lower-case letter -->
+    <Rule Id="SA1313" Action="Error" />   <!-- Parameter names should begin with lower-case letter -->
+    <Rule Id="SA1314" Action="Error" />   <!-- Type parameter names should begin with T -->
+  </Rules>
+
+  <!-- Spacing Rules - STRICT ENFORCEMENT -->
+  <Rules AnalyzerId="StyleCop.Analyzers" RuleNamespace="StyleCop.Analyzers">
+    <Rule Id="SA1000" Action="Error" />   <!-- Keywords should be spaced correctly -->
+    <Rule Id="SA1001" Action="Error" />   <!-- Commas should be spaced correctly -->
+    <Rule Id="SA1002" Action="Error" />   <!-- Semicolons should be spaced correctly -->
+    <Rule Id="SA1003" Action="Error" />   <!-- Symbols should be spaced correctly -->
+    <Rule Id="SA1004" Action="Error" />   <!-- Documentation lines should begin with single space -->
+    <Rule Id="SA1005" Action="Error" />   <!-- Single line comments should begin with single space -->
+    <Rule Id="SA1006" Action="Error" />   <!-- Preprocessor keywords should not be preceded by space -->
+    <Rule Id="SA1007" Action="Error" />   <!-- Operator keyword should be followed by space -->
+    <Rule Id="SA1008" Action="Error" />   <!-- Opening parenthesis should be spaced correctly -->
+    <Rule Id="SA1009" Action="Error" />   <!-- Closing parenthesis should be spaced correctly -->
+    <Rule Id="SA1010" Action="Error" />   <!-- Opening square brackets should be spaced correctly -->
+    <Rule Id="SA1011" Action="Error" />   <!-- Closing square brackets should be spaced correctly -->
+    <Rule Id="SA1012" Action="Error" />   <!-- Opening braces should be spaced correctly -->
+    <Rule Id="SA1013" Action="Error" />   <!-- Closing braces should be spaced correctly -->
+    <Rule Id="SA1014" Action="Error" />   <!-- Opening generic brackets should be spaced correctly -->
+    <Rule Id="SA1015" Action="Error" />   <!-- Closing generic brackets should be spaced correctly -->
+    <Rule Id="SA1016" Action="Error" />   <!-- Opening attribute brackets should be spaced correctly -->
+    <Rule Id="SA1017" Action="Error" />   <!-- Closing attribute brackets should be spaced correctly -->
+    <Rule Id="SA1018" Action="Error" />   <!-- Nullable type symbols should be spaced correctly -->
+    <Rule Id="SA1019" Action="Error" />   <!-- Member access symbols should be spaced correctly -->
+    <Rule Id="SA1020" Action="Error" />   <!-- Increment decrement symbols should be spaced correctly -->
+    <Rule Id="SA1021" Action="Error" />   <!-- Negative signs should be spaced correctly -->
+    <Rule Id="SA1022" Action="Error" />   <!-- Positive signs should be spaced correctly -->
+    <Rule Id="SA1023" Action="Error" />   <!-- Dereference and access of symbols should be spaced correctly -->
+    <Rule Id="SA1024" Action="Error" />   <!-- Colons should be spaced correctly -->
+    <Rule Id="SA1025" Action="Error" />   <!-- Code should not contain multiple whitespace in a row -->
+    <Rule Id="SA1026" Action="Error" />   <!-- Code should not contain space after new or stackalloc keyword in implicitly typed array allocation -->
+    <Rule Id="SA1027" Action="Error" />   <!-- Use tabs correctly -->
+    <Rule Id="SA1028" Action="Error" />   <!-- Code should not contain trailing whitespace -->
+  </Rules>
+
+  <!-- Readability Rules - STRICT ENFORCEMENT -->
+  <Rules AnalyzerId="StyleCop.Analyzers" RuleNamespace="StyleCop.Analyzers">
+    <Rule Id="SA1100" Action="Error" />   <!-- Do not prefix calls with base unless local implementation exists -->
+    <Rule Id="SA1101" Action="Error" />   <!-- Prefix local calls with this -->
+    <Rule Id="SA1102" Action="Error" />   <!-- Query clause should follow previous clause -->
+    <Rule Id="SA1103" Action="Error" />   <!-- Query clauses should be on separate lines or all on one line -->
+    <Rule Id="SA1104" Action="Error" />   <!-- Query clause should begin on new line when previous clause spans multiple lines -->
+    <Rule Id="SA1105" Action="Error" />   <!-- Query clauses spanning multiple lines should begin on own line -->
+    <Rule Id="SA1106" Action="Error" />   <!-- Code should not contain empty statements -->
+    <Rule Id="SA1107" Action="Error" />   <!-- Code should not contain multiple statements on one line -->
+    <Rule Id="SA1108" Action="Error" />   <!-- Block statements should not contain embedded comments -->
+    <Rule Id="SA1109" Action="Error" />   <!-- Block statements should not contain embedded regions -->
+    <Rule Id="SA1110" Action="Error" />   <!-- Opening parenthesis or bracket should be on declaration line -->
+    <Rule Id="SA1111" Action="Error" />   <!-- Closing parenthesis should be on line of last parameter -->
+    <Rule Id="SA1112" Action="Error" />   <!-- Closing parenthesis should be on line of opening parenthesis -->
+    <Rule Id="SA1113" Action="Error" />   <!-- Comma should be on the same line as previous parameter -->
+    <Rule Id="SA1114" Action="Error" />   <!-- Parameter list should follow declaration -->
+    <Rule Id="SA1115" Action="Error" />   <!-- Parameter should follow comma -->
+    <Rule Id="SA1116" Action="Error" />   <!-- Split parameters should start on line after declaration -->
+    <Rule Id="SA1117" Action="Error" />   <!-- Parameters should be on same line or separate lines -->
+    <Rule Id="SA1118" Action="Error" />   <!-- Parameter should not span multiple lines -->
+  </Rules>
+
+  <!-- Ordering Rules - STRICT ENFORCEMENT -->
+  <Rules AnalyzerId="StyleCop.Analyzers" RuleNamespace="StyleCop.Analyzers">
+    <Rule Id="SA1400" Action="Error" />   <!-- Access modifier should be declared -->
+    <Rule Id="SA1401" Action="Error" />   <!-- Fields should be private -->
+    <Rule Id="SA1402" Action="Error" />   <!-- File may only contain a single type -->
+    <Rule Id="SA1403" Action="Error" />   <!-- File may only contain a single namespace -->
+    <Rule Id="SA1404" Action="Error" />   <!-- Code analysis suppression should have justification -->
+    <Rule Id="SA1405" Action="Error" />   <!-- Debug.Assert should provide message text -->
+    <Rule Id="SA1406" Action="Error" />   <!-- Debug.Fail should provide message text -->
+    <Rule Id="SA1407" Action="Error" />   <!-- Arithmetic expressions should declare precedence -->
+    <Rule Id="SA1408" Action="Error" />   <!-- Conditional expressions should declare precedence -->
+    <Rule Id="SA1409" Action="Error" />   <!-- Remove unnecessary code -->
+    <Rule Id="SA1410" Action="Error" />   <!-- Remove delegate parens when possible -->
+    <Rule Id="SA1411" Action="Error" />   <!-- Attribute constructor should not use unnecessary parenthesis -->
+    <Rule Id="SA1412" Action="Error" />   <!-- Store files as UTF-8 with byte order mark -->
+    <Rule Id="SA1413" Action="Error" />   <!-- Use trailing comma in multi-line initializers -->
+  </Rules>
+
+  <!-- Microsoft Code Analysis Rules - SECURITY & PERFORMANCE -->
+  <Rules AnalyzerId="Microsoft.CodeAnalysis.NetAnalyzers" RuleNamespace="Microsoft.CodeAnalysis.NetAnalyzers">
+    <Rule Id="CA1031" Action="Warning" /> <!-- Do not catch general exception types -->
+    <Rule Id="CA1002" Action="Error" />   <!-- Do not expose generic lists -->
+    <Rule Id="CA1819" Action="Error" />   <!-- Properties should not return arrays -->
+    <Rule Id="CA2227" Action="Error" />   <!-- Collection properties should be read only -->
+    <Rule Id="CA1711" Action="Error" />   <!-- Identifiers should not have incorrect suffix -->
+    <Rule Id="CA2007" Action="Error" />   <!-- Consider calling ConfigureAwait on the awaited task -->
+    <Rule Id="CA1508" Action="Error" />   <!-- Avoid dead conditional code -->
+    <Rule Id="CA1825" Action="Error" />   <!-- Avoid zero-length array allocations -->
+    <Rule Id="CA1827" Action="Error" />   <!-- Do not use Count() or LongCount() when Any() can be used -->
+    <Rule Id="CA1828" Action="Error" />   <!-- Do not use CountAsync() or LongCountAsync() when AnyAsync() can be used -->
+    <Rule Id="CA1829" Action="Error" />   <!-- Use Length/Count property instead of Count() when available -->
+    <Rule Id="CA1830" Action="Error" />   <!-- Prefer strongly-typed Append and Insert method overloads on StringBuilder -->
+    <Rule Id="CA1831" Action="Error" />   <!-- Use AsSpan or AsMemory instead of Range-based indexers when appropriate -->
+    <Rule Id="CA1832" Action="Error" />   <!-- Use AsSpan or AsMemory instead of Range-based indexers for getting ReadOnlySpan or ReadOnlyMemory portion of an array -->
+    <Rule Id="CA1833" Action="Error" />   <!-- Use AsSpan or AsMemory instead of Range-based indexers for getting Span or Memory portion of an array -->
+    <Rule Id="CA1834" Action="Error" />   <!-- Consider using 'StringBuilder.Append(char)' when applicable -->
+    <Rule Id="CA1835" Action="Error" />   <!-- Prefer the 'Memory'-based overloads for 'ReadAsync' and 'WriteAsync' -->
+    <Rule Id="CA1836" Action="Error" />   <!-- Prefer IsEmpty over Count -->
+    <Rule Id="CA1837" Action="Error" />   <!-- Use 'Environment.ProcessId' -->
+    <Rule Id="CA1838" Action="Error" />   <!-- Avoid 'StringBuilder' parameters for P/Invokes -->
+    <Rule Id="CA2016" Action="Error" />   <!-- Forward the 'CancellationToken' parameter to methods -->
+  </Rules>
+</RuleSet>

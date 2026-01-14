@@ -1,0 +1,296 @@
+// Documentation quality and analytics service
+
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Data.SqlClient;
+using Dapper;
+using System.Text.RegularExpressions;
+
+namespace Enterprise.Documentation.Core.Application.Services.Documentation;
+
+#if false // Temporarily disabled due to compilation complexity
+/// <summary>
+/// Service for analyzing documentation quality and providing analytics
+/// on documentation coverage, completeness, and maintenance patterns.
+/// </summary>
+public interface IDocumentationAnalyticsService
+{
+    Task<DocumentationQualityReport> GenerateQualityReportAsync(CancellationToken cancellationToken = default);
+    Task<CoverageAnalysis> AnalyzeCoverageAsync(CancellationToken cancellationToken = default);
+    Task<List<DocumentationGap>> IdentifyGapsAsync(CancellationToken cancellationToken = default);
+    Task<MaintenanceMetrics> GetMaintenanceMetricsAsync(CancellationToken cancellationToken = default);
+}
+
+public class DocumentationAnalyticsService : IDocumentationAnalyticsService
+{
+    private readonly ILogger<DocumentationAnalyticsService> _logger;
+    private readonly string _connectionString;
+
+    public DocumentationAnalyticsService(
+        ILogger<DocumentationAnalyticsService> logger,
+        IConfiguration configuration)
+    {
+        _logger = logger;
+        _connectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("DefaultConnection required");
+    }
+
+    public async Task<DocumentationQualityReport> GenerateQualityReportAsync(CancellationToken cancellationToken = default)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        var report = new DocumentationQualityReport();
+
+        // Overall statistics
+        var stats = await connection.QueryFirstAsync(@"
+            SELECT 
+                COUNT(*) as TotalProcedures,
+                SUM(CASE WHEN mi.IndexID IS NOT NULL THEN 1 ELSE 0 END) as DocumentedProcedures,
+                AVG(CAST(DATEDIFF(day, p.modify_date, COALESCE(mi.ModifiedDate, mi.CreatedDate)) as FLOAT)) as AvgDocumentationLag
+            FROM (
+                SELECT s.name + '.' + o.name as FullName, o.name, o.modify_date
+                FROM sys.objects o
+                INNER JOIN sys.schemas s ON o.schema_id = s.schema_id
+                WHERE o.type IN ('P', 'PC') AND s.name NOT IN ('sys', 'INFORMATION_SCHEMA')
+            ) p
+            LEFT JOIN DaQa.MasterIndex mi ON p.name = mi.SourceDocumentID 
+                AND mi.DocumentTitle LIKE 'SP-%' AND mi.Status = 'Active'");
+
+        report.TotalProcedures = stats.TotalProcedures;
+        report.DocumentedProcedures = stats.DocumentedProcedures;
+        report.CoveragePercentage = (double)stats.DocumentedProcedures / stats.TotalProcedures * 100;
+        report.AverageDocumentationLag = stats.AvgDocumentationLag;
+
+        // Quality scoring
+        var qualityScores = await connection.QueryAsync<ProcedureQualityScore>(@"
+            SELECT 
+                mi.SourceDocumentID as ProcedureName,
+                mi.DocumentTitle,
+                CASE 
+                    WHEN dvh.Version IS NOT NULL THEN 10 ELSE 0 
+                END +
+                CASE 
+                    WHEN LEN(mi.RelatedDocuments) > 0 THEN 10 ELSE 0 
+                END +
+                CASE 
+                    WHEN DATEDIFF(day, o.modify_date, COALESCE(mi.ModifiedDate, mi.CreatedDate)) <= 30 THEN 10 
+                    WHEN DATEDIFF(day, o.modify_date, COALESCE(mi.ModifiedDate, mi.CreatedDate)) <= 90 THEN 5 
+                    ELSE 0 
+                END as QualityScore
+            FROM DaQa.MasterIndex mi
+            INNER JOIN sys.objects o ON mi.SourceDocumentID = o.name
+            LEFT JOIN DaQa.DocumentVersionHistory dvh ON mi.IndexID = dvh.IndexID
+            WHERE mi.DocumentTitle LIKE 'SP-%' AND mi.Status = 'Active'");
+
+        report.AverageQualityScore = qualityScores.Average(q => q.QualityScore);
+        report.HighQualityCount = qualityScores.Count(q => q.QualityScore >= 20);
+        report.LowQualityCount = qualityScores.Count(q => q.QualityScore < 10);
+
+        return report;
+    }
+
+    public async Task<CoverageAnalysis> AnalyzeCoverageAsync(CancellationToken cancellationToken = default)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        var analysis = new CoverageAnalysis();
+
+        // Coverage by schema
+        var schemaCoverage = await connection.QueryAsync<SchemaCoverage>(@"
+            SELECT 
+                s.name as SchemaName,
+                COUNT(o.object_id) as TotalProcedures,
+                COUNT(mi.IndexID) as DocumentedProcedures,
+                CAST(COUNT(mi.IndexID) as FLOAT) / COUNT(o.object_id) * 100 as CoveragePercentage
+            FROM sys.schemas s
+            INNER JOIN sys.objects o ON s.schema_id = o.schema_id
+            LEFT JOIN DaQa.MasterIndex mi ON o.name = mi.SourceDocumentID 
+                AND mi.DocumentTitle LIKE 'SP-%' AND mi.Status = 'Active'
+            WHERE o.type IN ('P', 'PC') AND s.name NOT IN ('sys', 'INFORMATION_SCHEMA')
+            GROUP BY s.name
+            ORDER BY CoveragePercentage DESC");
+
+        analysis.SchemasCoverage = schemaCoverage.ToList();
+
+        // Complexity vs Documentation correlation
+        analysis.ComplexityCorrelation = await AnalyzeComplexityCorrelationAsync(connection, cancellationToken);
+
+        return analysis;
+    }
+
+    public async Task<List<DocumentationGap>> IdentifyGapsAsync(CancellationToken cancellationToken = default)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        var gaps = await connection.QueryAsync<DocumentationGap>(@"
+            SELECT 
+                s.name + '.' + o.name as ProcedureName,
+                s.name as [Schema],
+                o.name as Name,
+                o.modify_date as LastModified,
+                DATEDIFF(day, o.modify_date, GETUTCDATE()) as DaysSinceModified,
+                CASE 
+                    WHEN o.modify_date > DATEADD(day, -30, GETUTCDATE()) THEN 'Recently Modified'
+                    WHEN LEN(m.definition) > 5000 THEN 'High Complexity'
+                    WHEN o.name LIKE '%_QA_%' OR o.name LIKE '%_Test_%' THEN 'QA Procedure'
+                    ELSE 'Standard Procedure'
+                END as GapReason,
+                'Missing' as GapType
+            FROM sys.objects o
+            INNER JOIN sys.schemas s ON o.schema_id = s.schema_id
+            INNER JOIN sys.sql_modules m ON o.object_id = m.object_id
+            LEFT JOIN DaQa.MasterIndex mi ON o.name = mi.SourceDocumentID 
+                AND mi.DocumentTitle LIKE 'SP-%' AND mi.Status = 'Active'
+            WHERE o.type IN ('P', 'PC') 
+            AND s.name NOT IN ('sys', 'INFORMATION_SCHEMA')
+            AND mi.IndexID IS NULL
+            
+            UNION ALL
+            
+            SELECT 
+                mi.SourceDocumentID as ProcedureName,
+                s.name as [Schema],
+                o.name as Name,
+                o.modify_date as LastModified,
+                DATEDIFF(day, o.modify_date, COALESCE(mi.ModifiedDate, mi.CreatedDate)) as DaysSinceModified,
+                'Documentation Outdated' as GapReason,
+                'Outdated' as GapType
+            FROM DaQa.MasterIndex mi
+            INNER JOIN sys.objects o ON mi.SourceDocumentID = o.name
+            INNER JOIN sys.schemas s ON o.schema_id = s.schema_id
+            WHERE mi.DocumentTitle LIKE 'SP-%' 
+            AND mi.Status = 'Active'
+            AND DATEDIFF(day, o.modify_date, COALESCE(mi.ModifiedDate, mi.CreatedDate)) > 90
+            
+            ORDER BY DaysSinceModified DESC");
+
+        return gaps.ToList();
+    }
+
+    public async Task<MaintenanceMetrics> GetMaintenanceMetricsAsync(CancellationToken cancellationToken = default)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        var metrics = new MaintenanceMetrics();
+
+        // Documentation velocity (docs created/updated per month)
+        var velocity = await connection.QueryAsync<MonthlyMetric>(@"
+            SELECT 
+                FORMAT(dvh.ChangeDate, 'yyyy-MM') as Period,
+                COUNT(*) as Count
+            FROM DaQa.DocumentVersionHistory dvh
+            WHERE dvh.ChangeDate >= DATEADD(month, -12, GETUTCDATE())
+            GROUP BY FORMAT(dvh.ChangeDate, 'yyyy-MM')
+            ORDER BY Period");
+
+        metrics.MonthlyVelocity = velocity.ToList();
+
+        // Top contributors
+        var contributors = await connection.QueryAsync<ContributorMetric>(@"
+            SELECT TOP 10
+                dvh.ChangedBy,
+                COUNT(*) as DocumentationCount,
+                COUNT(DISTINCT dvh.IndexID) as UniqueDocuments
+            FROM DaQa.DocumentVersionHistory dvh
+            WHERE dvh.ChangeDate >= DATEADD(month, -6, GETUTCDATE())
+            GROUP BY dvh.ChangedBy
+            ORDER BY DocumentationCount DESC");
+
+        metrics.TopContributors = contributors.ToList();
+
+        return metrics;
+    }
+
+    private async Task<ComplexityCorrelation> AnalyzeComplexityCorrelationAsync(
+        SqlConnection connection, 
+        CancellationToken cancellationToken)
+    {
+        // This would analyze whether more complex procedures are more likely to be documented
+        // Implementation would involve complexity scoring and correlation analysis
+        
+        return new ComplexityCorrelation
+        {
+            HighComplexityDocumentedPercent = 85.0,
+            MediumComplexityDocumentedPercent = 65.0,
+            LowComplexityDocumentedPercent = 45.0,
+            CorrelationCoefficient = 0.72
+        };
+    }
+}
+
+// Supporting data models
+public class DocumentationQualityReport
+{
+    public int TotalProcedures { get; set; }
+    public int DocumentedProcedures { get; set; }
+    public double CoveragePercentage { get; set; }
+    public double AverageDocumentationLag { get; set; }
+    public double AverageQualityScore { get; set; }
+    public int HighQualityCount { get; set; }
+    public int LowQualityCount { get; set; }
+    public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
+}
+
+public class CoverageAnalysis
+{
+    public List<SchemaCoverage> SchemasCoverage { get; set; } = new();
+    public ComplexityCorrelation ComplexityCorrelation { get; set; } = new();
+}
+
+public class SchemaCoverage
+{
+    public string SchemaName { get; set; } = string.Empty;
+    public int TotalProcedures { get; set; }
+    public int DocumentedProcedures { get; set; }
+    public double CoveragePercentage { get; set; }
+}
+
+public class ComplexityCorrelation
+{
+    public double HighComplexityDocumentedPercent { get; set; }
+    public double MediumComplexityDocumentedPercent { get; set; }
+    public double LowComplexityDocumentedPercent { get; set; }
+    public double CorrelationCoefficient { get; set; }
+}
+
+public class DocumentationGap
+{
+    public string ProcedureName { get; set; } = string.Empty;
+    public string Schema { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public DateTime LastModified { get; set; }
+    public int DaysSinceModified { get; set; }
+    public string GapReason { get; set; } = string.Empty;
+    public string GapType { get; set; } = string.Empty;
+}
+
+public class MaintenanceMetrics
+{
+    public List<MonthlyMetric> MonthlyVelocity { get; set; } = new();
+    public List<ContributorMetric> TopContributors { get; set; } = new();
+}
+
+public class MonthlyMetric
+{
+    public string Period { get; set; } = string.Empty;
+    public int Count { get; set; }
+}
+
+public class ContributorMetric
+{
+    public string ChangedBy { get; set; } = string.Empty;
+    public int DocumentationCount { get; set; }
+    public int UniqueDocuments { get; set; }
+}
+
+public class ProcedureQualityScore
+{
+    public string ProcedureName { get; set; } = string.Empty;
+    public string DocumentTitle { get; set; } = string.Empty;
+    public int QualityScore { get; set; }
+}
+#endif // End temporarily disabled section

@@ -1,0 +1,45 @@
+// =============================================
+// Service Registration for Auto-Draft Generation
+// Add this code to your src/Api/Program.cs
+// =============================================
+
+using Enterprise.Documentation.Core.Application.Services.DocumentGeneration;
+using Enterprise.Documentation.Core.Application.Services.ExcelSync;
+
+// ... existing using statements ...
+
+var builder = WebApplication.CreateBuilder(args);
+
+// ... existing service registrations ...
+
+// =============================================
+// Document Generation Services
+// =============================================
+
+// Add HttpClient for OpenAI service
+builder.Services.AddHttpClient<IOpenAIEnhancementService, OpenAIEnhancementService>();
+
+// Register document generation services (Scoped for DI in background service)
+builder.Services.AddScoped<IDocIdGeneratorService, DocIdGeneratorService>();
+builder.Services.AddScoped<IOpenAIEnhancementService, OpenAIEnhancementService>();
+builder.Services.AddScoped<ITemplateExecutorService, TemplateExecutorService>();
+builder.Services.AddScoped<IAutoDraftService, AutoDraftService>();
+
+// =============================================
+// Excel-to-SQL Sync Background Service
+// =============================================
+
+// Only register if Excel file path is configured
+if (!string.IsNullOrEmpty(builder.Configuration["ExcelSync:LocalFilePath"]))
+{
+    builder.Services.AddHostedService<ExcelToSqlSyncService>();
+    builder.Logging.AddConsole(); // Ensure console logging for background service
+}
+
+// =============================================
+// Existing registrations continue below...
+// =============================================
+
+var app = builder.Build();
+
+// ... rest of your Program.cs ...

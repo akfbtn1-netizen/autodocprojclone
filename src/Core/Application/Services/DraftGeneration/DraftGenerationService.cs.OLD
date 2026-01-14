@@ -1,0 +1,623 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
+using Enterprise.Documentation.Core.Application.Services.CodeExtraction;
+using Enterprise.Documentation.Core.Application.Services.Quality;
+using Enterprise.Documentation.Core.Application.Services.DocumentGeneration.Templates;
+using Enterprise.Documentation.Core.Application.Services.SqlAnalysis;
+using System.Text.Json;
+
+using Enterprise.Documentation.Core.Domain.Models;
+using System.Net.Http.Json;
+
+
+
+
+namespace Enterprise.Documentation.Core.Application.Services.DraftGeneration;
+
+/// <summary>
+/// Service that generates draft documentation by combining change data, code extraction, and quality analysis.
+/// Integrates with existing template system for document generation.
+/// NOW WITH AI ENHANCEMENT!
+/// </summary>
+public class DraftGenerationService : IDraftGenerationService
+{
+    // ...existing code...
+    private readonly ILogger<DraftGenerationService> _logger;
+    private readonly IConfiguration _configuration;
+    private readonly ITemplateSelector _templateSelector;
+
+    public DraftGenerationService(
+        ILogger<DraftGenerationService> logger,
+        IConfiguration configuration,
+        ITemplateSelector templateSelector)
+    {
+        _logger = logger;
+        _configuration = configuration;
+        _templateSelector = templateSelector;
+    }
+
+
+
+
+
+
+    public async Task<DraftGenerationResult> GenerateDraftAsync(
+        string docId,
+        DocumentChangeEntry changeEntry,
+        CodeExtractionResult? codeResult,
+        CodeQualityResult? qualityResult,
+        CancellationToken ct = default)
+    {
+        // Map to internal DTO
+        var changeData = new ChangeData
+        {
+            DocId = changeEntry.DocId ?? "",
+            JiraNumber = changeEntry.JiraNumber ?? "",
+            TableName = changeEntry.TableName,
+            ColumnName = changeEntry.ColumnName,
+            StoredProcedureName = changeEntry.ModifiedStoredProcedures,
+            Description = changeEntry.Description,
+            AssignedTo = changeEntry.AssignedTo,
+            ChangeType = changeEntry.ChangeType,
+            Priority = changeEntry.Priority,
+            Severity = changeEntry.Severity
+        };
+
+        var result = new DraftGenerationResult();
+        try
+        {
+            _logger.LogInformation("Starting draft generation for DocId: {DocId}", docId);
+            var documentType = DetermineDocumentType(changeData);
+            _logger.LogDebug("Determined document type: {DocumentType}", documentType);
+            result.DocumentType = documentType;
+
+            var template = await SelectTemplateAsync(documentType, changeData, ct);
+            if (template == null)
+            {
+                result.ErrorMessage = $"No suitable template found for document type: {documentType}";
+                _logger.LogWarning("Template selection failed for DocId: {DocId}, Type: {DocumentType}", docId, documentType);
+                return result;
+            }
+
+            result.TemplateUsed = template.GetType().Name;
+            _logger.LogDebug("Selected template: {TemplateName}", result.TemplateUsed);
+
+            // Build base template data
+            var templateData = PrepareTemplateData(changeData, codeResult, qualityResult);
+
+            // Analyze SQL
+            SqlAnalysisResult? sqlAnalysis = null;
+            if (!string.IsNullOrEmpty(codeResult?.ExtractedCode))
+            {
+                sqlAnalysis = _sqlAnalysisService.AnalyzeSql(codeResult.ExtractedCode);
+            }
+
+            // AI Enhancement
+            var aiEnhanced = await EnrichWithAIAsync(templateData, sqlAnalysis, ct);
+
+            // MERGE: Metadata + SQL Analysis + AI Enhancement
+            templateData = MergeTemplateData(changeData, sqlAnalysis, aiEnhanced);
+
+            // Step 4: Generate draft content
+            var draftContent = await GenerateContentAsync(template, templateData, ct);
+
+            // Step 5: Post-process and validate
+            result.DraftContent = PostProcessContent(draftContent, changeData, qualityResult);
+            result.DocumentUrl = GenerateDocumentUrl(docId, documentType);
+
+            // Step 6: Add metadata
+            PopulateMetadata(result, changeData, codeResult, qualityResult);
+
+            // Step 7: Quality warnings
+            AddQualityWarnings(result, qualityResult);
+
+            result.Success = true;
+            _logger.LogInformation("Draft generation completed successfully for DocId: {DocId}", docId);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Draft generation failed for DocId: {DocId}", docId);
+            result.ErrorMessage = $"Draft generation failed: {ex.Message}";
+            return result;
+        }
+    }
+
+    private Dictionary<string, object> MergeTemplateData(
+        ChangeData changeData,
+        SqlAnalysisResult? sqlAnalysis,
+        Dictionary<string, object> aiEnhanced)
+    {
+        var merged = new Dictionary<string, object>();
+        merged["doc_id"] = changeData.DocId ?? "UNKNOWN";
+        merged["jira"] = changeData.JiraNumber ?? "";
+        merged["version"] = DetermineVersion(changeData, sqlAnalysis?.BracketedChange);
+        merged["author"] = changeData.ReportedBy ?? "";
+        merged["date"] = changeData.Date?.ToString("MM/dd/yyyy") ?? DateTime.Now.ToString("MM/dd/yyyy");
+        merged["schema"] = sqlAnalysis?.Schema ?? ExtractSchemaFromProcName(changeData.StoredProcedureName);
+        merged["sp_name"] = sqlAnalysis?.ProcedureName ?? ExtractProcNameOnly(changeData.StoredProcedureName);
+        merged["database"] = "IRFS1";
+        merged["table"] = changeData.TableName ?? "";
+        merged["column"] = changeData.ColumnName ?? "";
+        merged["change_type"] = changeData.ChangeType ?? "";
+        merged["purpose"] = aiEnhanced.GetValueOrDefault("Purpose", changeData.Description);
+        merged["overview"] = aiEnhanced.GetValueOrDefault("Purpose", changeData.Description);
+        merged["whats_new"] = aiEnhanced.GetValueOrDefault("WhatsNew", $"Version {merged["version"]} - {changeData.Description}");
+        if (aiEnhanced.ContainsKey("Parameters") && aiEnhanced["Parameters"] is List<Dictionary<string, string>> aiParams)
+        {
+            merged["parameters"] = aiParams;
+        }
+        else if (sqlAnalysis?.Parameters != null)
+        {
+            merged["parameters"] = sqlAnalysis.Parameters.Select(p => new Dictionary<string, string>
+            {
+                ["name"] = p.Name,
+                ["type"] = p.Type,
+                ["direction"] = p.Direction,
+                ["desc"] = p.Description
+            }).ToList();
+        }
+        else
+        {
+            merged["parameters"] = new List<Dictionary<string, string>>();
+        }
+        merged["logic"] = aiEnhanced.GetValueOrDefault("LogicSteps", sqlAnalysis?.LogicSteps ?? new List<string>());
+        if (aiEnhanced.ContainsKey("Dependencies") && aiEnhanced["Dependencies"] is Dictionary<string, string> aiDeps)
+        {
+            merged["dependencies"] = aiDeps;
+        }
+        else if (sqlAnalysis?.Dependencies != null)
+        {
+            merged["dependencies"] = new Dictionary<string, string>
+            {
+                ["Source Tables"] = string.Join(", ", sqlAnalysis.Dependencies.Tables),
+                ["Procedures"] = string.Join(", ", sqlAnalysis.Dependencies.Procedures),
+                ["Temp Tables"] = string.Join(", ", sqlAnalysis.Dependencies.TempTables),
+                ["Control Tables"] = string.Join(", ", sqlAnalysis.Dependencies.ControlTables)
+            };
+        }
+        else
+        {
+            merged["dependencies"] = new Dictionary<string, string>();
+        }
+        merged["performance"] = aiEnhanced.GetValueOrDefault("PerformanceNotes", new List<string>());
+        merged["error_handling"] = aiEnhanced.GetValueOrDefault("ErrorHandling", "Standard error handling implemented");
+        if (aiEnhanced.ContainsKey("Complexity") && aiEnhanced["Complexity"] is Dictionary<string, string> aiComplex)
+        {
+            merged["complexity"] = aiComplex;
+        }
+        else if (sqlAnalysis?.Complexity != null)
+        {
+            merged["complexity"] = new Dictionary<string, string>
+            {
+                ["Lines of Code"] = sqlAnalysis.Complexity.LineCount.ToString(),
+                ["Temp Tables"] = sqlAnalysis.Complexity.TempTableCount.ToString(),
+                ["CTEs"] = sqlAnalysis.Complexity.CteCount.ToString(),
+                ["Joins"] = sqlAnalysis.Complexity.JoinCount.ToString(),
+                ["Logic Complexity"] = sqlAnalysis.Complexity.ComplexityLevel,
+                ["Business Impact"] = "HIGH"
+            };
+        }
+        else
+        {
+            merged["complexity"] = new Dictionary<string, string>();
+        }
+        merged["usage"] = GenerateUsageExample(changeData, sqlAnalysis);
+        merged["recent_changes"] = BuildRecentChanges(changeData, sqlAnalysis?.BracketedChange);
+        merged["extracted_at"] = DateTime.Now.ToString("o");
+        merged["extraction_version"] = "1.0";
+        merged["confidence_score"] = CalculateConfidence(sqlAnalysis, aiEnhanced);
+        merged["related_tables"] = sqlAnalysis?.Dependencies.Tables ?? new List<string>();
+        merged["keywords"] = ExtractKeywords(changeData, sqlAnalysis);
+        merged["doc_type"] = DetermineDocType(changeData);
+        return merged;
+
+    }
+
+    private double CalculateConfidence(SqlAnalysisResult? sqlAnalysis, Dictionary<string, object> aiEnhanced)
+    {
+        // Simple heuristic: count filled fields
+        int total = 0, filled = 0;
+        var keys = new[] { "purpose", "parameters", "logic", "dependencies", "complexity", "performance", "error_handling" };
+        foreach (var k in keys)
+        {
+            total++;
+            if (aiEnhanced.ContainsKey(k) && aiEnhanced[k] != null) filled++;
+        }
+        if (sqlAnalysis != null)
+        {
+            total += 4;
+            if (sqlAnalysis.Parameters?.Count > 0) filled++;
+            if (sqlAnalysis.Dependencies?.Tables?.Count > 0) filled++;
+            if (sqlAnalysis.Complexity != null) filled++;
+            if (sqlAnalysis.LogicSteps?.Count > 0) filled++;
+        }
+        return total == 0 ? 0.0 : Math.Round((double)filled / total, 2);
+    }
+
+    private List<string> ExtractKeywords(Enterprise.Documentation.Core.Domain.Models.DocumentChangeEntry changeEntry, SqlAnalysisResult? sqlAnalysis)
+    {
+        var keywords = new List<string>();
+        if (!string.IsNullOrEmpty(changeEntry.Description))
+            keywords.AddRange(changeEntry.Description.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+        if (sqlAnalysis?.Dependencies?.Tables != null)
+            keywords.AddRange(sqlAnalysis.Dependencies.Tables);
+        if (!string.IsNullOrEmpty(changeEntry.TableName))
+            keywords.Add(changeEntry.TableName);
+        if (!string.IsNullOrEmpty(changeEntry.ColumnName))
+            keywords.Add(changeEntry.ColumnName);
+        return keywords.Distinct().ToList();
+    }
+
+    private string DetermineDocType(Enterprise.Documentation.Core.Domain.Models.DocumentChangeEntry changeEntry)
+    {
+        if (!string.IsNullOrEmpty(changeEntry.ChangeType))
+        {
+            if (changeEntry.ChangeType.Contains("QA", StringComparison.OrdinalIgnoreCase)) return "QA";
+            if (changeEntry.ChangeType.Contains("Defect", StringComparison.OrdinalIgnoreCase)) return "Defect";
+            if (changeEntry.ChangeType.Contains("Enhancement", StringComparison.OrdinalIgnoreCase)) return "Enhancement";
+            if (changeEntry.ChangeType.Contains("Business", StringComparison.OrdinalIgnoreCase)) return "BusinessRequest";
+        }
+        if (!string.IsNullOrEmpty(changeEntry.ModifiedStoredProcedures)) return "SP";
+        return "Unknown";
+    }
+
+    private string DetermineVersion(Enterprise.Documentation.Core.Domain.Models.DocumentChangeEntry changeEntry, BracketedChange? bracketedChange)
+    {
+        if (bracketedChange != null && !string.IsNullOrWhiteSpace(bracketedChange.Version))
+            return bracketedChange.Version;
+        if (!string.IsNullOrWhiteSpace(changeEntry.Version))
+            return changeEntry.Version;
+        return "1.0";
+    }
+
+    private string ExtractSchemaFromProcName(string? procName)
+    {
+        if (string.IsNullOrEmpty(procName)) return "";
+        var parts = procName.Split('.');
+        return parts.Length > 1 ? parts[0] : "";
+    }
+
+    private string ExtractProcNameOnly(string? procName)
+    {
+        if (string.IsNullOrEmpty(procName)) return "";
+        var parts = procName.Split('.');
+        return parts.Length > 1 ? parts[1] : parts[0];
+    }
+
+    private string GenerateUsageExample(Enterprise.Documentation.Core.Domain.Models.DocumentChangeEntry changeEntry, SqlAnalysisResult? sqlAnalysis)
+    {
+        if (sqlAnalysis == null || sqlAnalysis.Parameters == null || !sqlAnalysis.Parameters.Any())
+            return $"EXEC {changeEntry.ModifiedStoredProcedures};";
+        var paramExamples = sqlAnalysis.Parameters
+            .Select(p => $"{p.Name} = {GetExampleValue(p.Type)}")
+            .ToList();
+        return $"EXEC {changeEntry.ModifiedStoredProcedures}\n    {string.Join(",\n    ", paramExamples)};";
+    }
+
+    private string GetExampleValue(string type)
+    {
+        if (type.Contains("INT")) return "12345";
+        if (type.Contains("VARCHAR") || type.Contains("CHAR")) return "'ExampleValue'";
+        if (type.Contains("DATE")) return "'2025-12-19'";
+        if (type.Contains("BIT")) return "1";
+        if (type.Contains("DECIMAL")) return "100.00";
+        return "NULL";
+    }
+
+    private List<Dictionary<string, object>> BuildRecentChanges(Enterprise.Documentation.Core.Domain.Models.DocumentChangeEntry changeEntry, BracketedChange? bracketedChange)
+    {
+        var changes = new List<Dictionary<string, object>>();
+        if (bracketedChange != null)
+        {
+            changes.Add(new Dictionary<string, object>
+            {
+                ["version"] = "2.0",
+                ["date"] = changeEntry.Date?.ToString("MM/dd/yyyy") ?? DateTime.Now.ToString("MM/dd/yyyy"),
+                ["author"] = changeEntry.ReportedBy ?? "Unknown",
+                ["summary"] = changeEntry.Description ?? "Update",
+                ["ref"] = bracketedChange.Ticket,
+                ["details"] = $"Modified code block (lines {bracketedChange.StartLine}-{bracketedChange.EndLine})"
+            });
+        }
+        else
+        {
+            changes.Add(new Dictionary<string, object>
+            {
+                ["version"] = "1.0",
+                ["date"] = changeEntry.Date?.ToString("MM/dd/yyyy") ?? DateTime.Now.ToString("MM/dd/yyyy"),
+                ["author"] = changeEntry.ReportedBy ?? "Unknown",
+                ["summary"] = changeEntry.Description ?? "Initial version",
+                ["ref"] = changeEntry.JiraNumber ?? "Initial Release",
+                ["details"] = ""
+            });
+        }
+        return changes;
+    }
+
+    private string DetermineDocumentType(ChangeData changeData)
+    {
+        // Check ChangeType FIRST (EN/DF/BR)
+        if (!string.IsNullOrEmpty(changeData.ChangeType))
+        {
+            if (changeData.ChangeType.Contains("Enhancement", StringComparison.OrdinalIgnoreCase)) return "EN";
+            if (changeData.ChangeType.Contains("Defect", StringComparison.OrdinalIgnoreCase)) return "DF";
+            if (changeData.ChangeType.Contains("Bug", StringComparison.OrdinalIgnoreCase)) return "DF";
+            return "BR";
+        }
+        // THEN check if it's a standalone SP document
+        if (!string.IsNullOrEmpty(changeData.StoredProcedureName))
+        {
+            _logger.LogInformation("Using SP template for {SPName} with ChangeType: {ChangeType}", changeData.StoredProcedureName, changeData.ChangeType);
+            return "SP";
+        }
+        if (!string.IsNullOrEmpty(changeData.TableName))
+        {
+            return "TB";
+        }
+        return "BR";
+    }
+
+    private async Task<IDocumentTemplate?> SelectTemplateAsync(
+        string documentType,
+        ChangeData changeData,
+        CancellationToken ct)
+    {
+        try
+        {
+            var templateName = documentType switch
+            {
+                "SP" => "StoredProcedureTemplate",
+                "EN" => "EnhancementTemplate",
+                "DF" => "DefectTemplate",
+                _ => "BusinessRuleTemplate"
+            };
+
+            _logger.LogInformation("Using {TemplateName} template for document type: {DocumentType}", templateName, documentType);
+            return await _templateSelector.SelectTemplateAsync(templateName, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Template selection failed, using fallback logic");
+            return documentType switch
+            {
+                "SP" => new StoredProcedureTemplate(),
+                _ => null
+            };
+        }
+    }
+
+    private Dictionary<string, object> PrepareTemplateData(
+        ChangeData changeData,
+        CodeExtractionResult? codeResult,
+        CodeQualityResult? qualityResult)
+    {
+        var templateData = new Dictionary<string, object>
+        {
+            ["DocId"] = changeData.DocId,
+            ["JiraNumber"] = changeData.JiraNumber ?? "N/A",
+            ["Description"] = changeData.Description ?? "No description provided",
+            ["ChangeType"] = changeData.ChangeType ?? "Unknown",
+            ["Priority"] = changeData.Priority ?? "Medium",
+            ["Severity"] = changeData.Severity ?? "Low",
+            ["AssignedTo"] = changeData.AssignedTo ?? "Unassigned",
+            ["TableName"] = changeData.TableName ?? "N/A",
+            ["ColumnName"] = changeData.ColumnName ?? "N/A",
+            ["StoredProcedureName"] = changeData.StoredProcedureName ?? "N/A",
+            ["GeneratedDate"] = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss UTC"),
+            ["DocumentVersion"] = "1.0"
+        };
+
+        if (codeResult != null)
+        {
+            templateData["HasCodeExtraction"] = true;
+            templateData["ExtractedCode"] = codeResult.ExtractedCode ?? "No code extracted";
+            templateData["ExtractionSuccess"] = !string.IsNullOrEmpty(codeResult.ExtractedCode);
+            if (!string.IsNullOrEmpty(codeResult.Warnings))
+            {
+                templateData["CodeWarnings"] = codeResult.Warnings;
+            }
+        }
+        else
+        {
+            templateData["HasCodeExtraction"] = false;
+            templateData["ExtractedCode"] = "No code extraction performed";
+        }
+
+        if (qualityResult != null)
+        {
+            templateData["HasQualityAnalysis"] = true;
+            templateData["QualityScore"] = qualityResult.Score;
+            templateData["QualityGrade"] = qualityResult.Grade;
+            templateData["QualityCategory"] = qualityResult.Category;
+            if (qualityResult.Issues?.Any() == true)
+            {
+                templateData["QualityIssues"] = string.Join("; ", qualityResult.Issues);
+            }
+        }
+        else
+        {
+            templateData["HasQualityAnalysis"] = false;
+            templateData["QualityScore"] = "N/A";
+            templateData["QualityGrade"] = "Not Analyzed";
+        }
+
+        return templateData;
+    }
+
+    private async Task<Dictionary<string, object>> EnrichWithAIAsync(
+        Dictionary<string, object> templateData,
+        SqlAnalysisResult? sqlAnalysis,
+        CancellationToken ct)
+    {
+        // Placeholder for AI enrichment logic. For now, just return the templateData as-is.
+        return await Task.FromResult(templateData);
+    }
+
+    private async Task<string> GenerateContentAsync(
+        IDocumentTemplate template,
+        Dictionary<string, object> templateData,
+        CancellationToken ct)
+    {
+        try
+        {
+            var content = await template.GenerateAsync(templateData, ct);
+            return content;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Template generation failed, creating fallback content");
+            return GenerateFallbackContent(templateData);
+        }
+    }
+
+    private string GenerateFallbackContent(Dictionary<string, object> templateData)
+    {
+        var content = $@"# Documentation Draft - {templateData["DocId"]}
+
+## Change Information
+- **JIRA Number**: {templateData["JiraNumber"]}
+- **Description**: {templateData["Description"]}
+- **Change Type**: {templateData["ChangeType"]}
+- **Priority**: {templateData["Priority"]}
+- **Assigned To**: {templateData["AssignedTo"]}
+
+";
+
+        // Add AI-enhanced content if available
+        if (templateData.ContainsKey("AI_Enhanced") && (bool)templateData["AI_Enhanced"])
+        {
+            content += $@"## Enhanced Description
+{templateData["Description_AI_Enhanced"]}
+
+## Business Impact
+{templateData["BusinessImpact"]}
+
+## Technical Notes
+{templateData["TechnicalNotes"]}
+
+";
+        }
+
+        content += $@"## Technical Details
+- **Table**: {templateData["TableName"]}
+- **Column**: {templateData["ColumnName"]}
+- **Stored Procedure**: {templateData["StoredProcedureName"]}
+
+## Code Analysis
+";
+
+        if ((bool)templateData.GetValueOrDefault("HasCodeExtraction", false))
+        {
+            content += $@"
+**Extracted Code:**
+```sql
+{templateData["ExtractedCode"]}
+```
+";
+        }
+
+        if ((bool)templateData.GetValueOrDefault("HasQualityAnalysis", false))
+        {
+            content += $@"
+## Quality Assessment
+- **Score**: {templateData["QualityScore"]}/100
+- **Grade**: {templateData["QualityGrade"]}
+- **Category**: {templateData["QualityCategory"]}
+";
+            
+            if (templateData.ContainsKey("QualityIssues"))
+            {
+                content += $@"
+**Quality Issues:**
+{templateData["QualityIssues"]}
+";
+            }
+        }
+
+        content += $@"
+
+## Metadata
+- **Generated**: {templateData["GeneratedDate"]}
+- **Version**: {templateData["DocumentVersion"]}
+- **AI Enhanced**: {templateData.GetValueOrDefault("AI_Enhanced", false)}
+
+---
+*This document was automatically generated by the Enterprise Documentation Platform.*
+";
+
+        return content;
+    }
+
+    private string PostProcessContent(string content, Enterprise.Documentation.Core.Domain.Models.DocumentChangeEntry changeEntry, CodeQualityResult? qualityResult)
+    {
+        if (qualityResult != null && (qualityResult.Grade == "D" || qualityResult.Grade == "F"))
+        {
+            var warning = $@"
+⚠️ **QUALITY WARNING**: This change has received a poor quality grade ({qualityResult.Grade}). Please review the code quality issues before proceeding.
+
+";
+            content = warning + content;
+        }
+
+        if (changeEntry.Priority == "High" || changeEntry.Severity == "High")
+        {
+            var highPriorityNote = @"
+🚨 **HIGH PRIORITY CHANGE** - This change requires immediate attention and thorough review.
+
+";
+            content = highPriorityNote + content;
+        }
+
+        return content;
+    }
+
+    private string GenerateDocumentUrl(string docId, string documentType)
+    {
+        var baseUrl = _configuration["DocumentStorage:BaseUrl"] ?? "https://docs.company.com";
+        return $"{baseUrl}/drafts/{documentType}/{docId}.md";
+    }
+
+    private void PopulateMetadata(
+        DraftGenerationResult result, 
+        Enterprise.Documentation.Core.Domain.Models.DocumentChangeEntry changeEntry, 
+        CodeExtractionResult? codeResult, 
+        CodeQualityResult? qualityResult)
+    {
+        result.Metadata["DocumentType"] = DetermineDocumentType(changeEntry);
+        result.Metadata["GenerationTimestamp"] = DateTime.UtcNow;
+        result.Metadata["ChangeData"] = JsonSerializer.Serialize(changeEntry);
+        
+        if (codeResult != null)
+        {
+            result.Metadata["CodeExtractionSuccess"] = !string.IsNullOrEmpty(codeResult.ExtractedCode);
+            result.Metadata["ExtractionMethod"] = codeResult.ExtractionMethod;
+            result.Metadata["MarkerCount"] = codeResult.MarkerCount;
+        }
+        
+        if (qualityResult != null)
+        {
+            result.Metadata["QualityScore"] = qualityResult.Score;
+            result.Metadata["QualityGrade"] = qualityResult.Grade;
+        }
+    }
+
+    private void AddQualityWarnings(DraftGenerationResult result, CodeQualityResult? qualityResult)
+    {
+        if (qualityResult == null) return;
+
+        if (qualityResult.Grade == "F")
+        {
+            result.Warnings.Add("CRITICAL: Code quality grade F detected. Immediate refactoring required.");
+        }
+        else if (qualityResult.Grade == "D")
+        {
+            result.Warnings.Add("WARNING: Code quality grade D detected. Significant improvements needed.");
+        }
+        
+        if (qualityResult.Score < 50)
+        {
+            result.Warnings.Add($"Quality score ({qualityResult.Score}/100) is below acceptable threshold.");
+        }
+    }
+}
