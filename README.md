@@ -44,6 +44,8 @@ dotnet run
 ## Status
 ✅ Foundation Complete - Ready for Agent Migration
 
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/akfbtn1-netizen/autodocprojclone?utm_source=oss&utm_medium=github&utm_campaign=akfbtn1-netizen%2Fautodocprojclone&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+
 ## Next Steps
 1. Create Enhanced BaseAgent
 2. Migrate SchemaDetectorAgent
