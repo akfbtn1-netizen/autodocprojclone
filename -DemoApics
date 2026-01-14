@@ -1,0 +1,98 @@
+using Microsoft.AspNetCore.SignalR;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services
+builder.Services.AddControllers();
+builder.Services.AddSignalR();
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(builder =>
+    {
+        builder.WithOrigins("http://localhost:8080", "https://localhost:7001")
+               .AllowAnyHeader()
+               .AllowAnyMethod()
+               .AllowCredentials();
+    });
+});
+
+var app = builder.Build();
+
+// Configure pipeline
+app.UseCors();
+app.UseRouting();
+app.MapControllers();
+app.MapHub<WorkflowHub>("/hubs/workflow");
+
+// Serve static files
+app.UseStaticFiles();
+app.MapFallbackToFile("dashboard.html");
+
+app.Run("https://localhost:7001");
+
+// SignalR Hub
+public class WorkflowHub : Hub
+{
+    public async Task JoinWorkflowGroup(string workflowId)
+    {
+        await Groups.AddToGroupAsync(Context.ConnectionId, workflowId);
+    }
+
+    public async Task SendWorkflowEvent(object eventData)
+    {
+        await Clients.All.SendAsync("WorkflowEvent", eventData);
+    }
+}
+
+// Demo Controller
+[ApiController]
+[Route("api/[controller]")]
+public class DemoController : ControllerBase
+{
+    private readonly IHubContext<WorkflowHub> _hubContext;
+    
+    public DemoController(IHubContext<WorkflowHub> hubContext)
+    {
+        _hubContext = hubContext;
+    }
+    
+    [HttpPost("simulate-sp-workflow")]
+    public async Task<IActionResult> SimulateStoredProcedureWorkflow()
+    {
+        var workflowId = Guid.NewGuid().ToString();
+        
+        // Simulate workflow steps
+        await SendEvent("ExcelChangeDetected", workflowId, "Excel file modified with SP code");
+        await Task.Delay(1000);
+        
+        await SendEvent("CodeExtractionStarted", workflowId, "Extracting stored procedure code");
+        await Task.Delay(1500);
+        
+        await SendEvent("ComplexityAnalysis", workflowId, "Complexity Score: 23 (Moderate)");
+        await Task.Delay(1000);
+        
+        await SendEvent("TemplateSelection", workflowId, "Selected StoredProcedureTemplate with adaptive sections");
+        await Task.Delay(1500);
+        
+        await SendEvent("DocumentGeneration", workflowId, "Generating OpenXML document...");
+        await Task.Delay(2000);
+        
+        await SendEvent("WorkflowCompleted", workflowId, "Document generated successfully!");
+        
+        return Ok(new { WorkflowId = workflowId, Status = "Completed" });
+    }
+    
+    private async Task SendEvent(string eventType, string workflowId, string message)
+    {
+        var eventData = new
+        {
+            WorkflowId = workflowId,
+            EventType = eventType,
+            Message = message,
+            Timestamp = DateTime.UtcNow,
+            IsStoredProcedure = true
+        };
+        
+        await _hubContext.Clients.All.SendAsync("WorkflowEvent", eventData);
+    }
+}

@@ -29,7 +29,7 @@
     <PackageReference Include="Microsoft.Extensions.Configuration" />
     <PackageReference Include="System.Text.Json" />
     <!-- ScriptDom for T-SQL AST parsing (Agent #3: Data Lineage Tracer) -->
-    <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="161.*" />
+    <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" />
   </ItemGroup>
 
 </Project>

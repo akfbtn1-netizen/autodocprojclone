@@ -19,7 +19,7 @@
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
     <PackageReference Include="Hangfire.Core" />
     <PackageReference Include="Polly" />
-    <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="161.*" />
+    <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Common" />
   </ItemGroup>
 
