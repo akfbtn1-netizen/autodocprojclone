@@ -1,0 +1,234 @@
+{
+  "$schema": "stored_procedure_template_context",
+  "description": "Example context data for StoredProcedure_template.docx",
+  
+  "procedure_name": "SP_GetCustomerOrders",
+  "schema_name": "dbo",
+  "database_name": "SalesDB",
+  "object_type": "STORED PROCEDURE",
+  
+  "metadata": {
+    "created_date": "2024-06-15",
+    "created_by": "john.smith",
+    "modified_date": "2025-12-20",
+    "modified_by": "jane.doe",
+    "version": "2.3.1"
+  },
+  
+  "description": "Retrieves customer orders with comprehensive filtering options. Supports date range filtering, status filtering, and pagination. Returns order details including line items and shipping information.",
+  
+  "business_purpose": "This procedure supports the Order Management dashboard, Customer Service inquiry screens, and the nightly reporting batch process. It is a critical component of the sales operations workflow.",
+  
+  "parameters": [
+    {
+      "name": "@CustomerID",
+      "type": "INT",
+      "direction": "INPUT",
+      "default_value": "NULL",
+      "description": "Customer identifier. If NULL, returns orders for all customers.",
+      "required": false,
+      "validation": "Must be valid CustomerID from Customers table"
+    },
+    {
+      "name": "@StartDate",
+      "type": "DATE",
+      "direction": "INPUT", 
+      "default_value": "NULL",
+      "description": "Start date for order filter (inclusive). If NULL, no lower date bound.",
+      "required": false,
+      "validation": "Must be <= @EndDate if both provided"
+    },
+    {
+      "name": "@EndDate",
+      "type": "DATE",
+      "direction": "INPUT",
+      "default_value": "NULL", 
+      "description": "End date for order filter (inclusive). If NULL, no upper date bound.",
+      "required": false,
+      "validation": "Must be >= @StartDate if both provided"
+    },
+    {
+      "name": "@OrderStatus",
+      "type": "VARCHAR(20)",
+      "direction": "INPUT",
+      "default_value": "'Active'",
+      "description": "Filter by order status. Valid values: 'Active', 'Completed', 'Cancelled', 'All'",
+      "required": false,
+      "validation": "Must be one of the valid status values"
+    },
+    {
+      "name": "@PageNumber",
+      "type": "INT",
+      "direction": "INPUT",
+      "default_value": "1",
+      "description": "Page number for pagination (1-based)",
+      "required": false,
+      "validation": "Must be >= 1"
+    },
+    {
+      "name": "@PageSize",
+      "type": "INT",
+      "direction": "INPUT",
+      "default_value": "50",
+      "description": "Number of records per page",
+      "required": false,
+      "validation": "Must be between 1 and 1000"
+    },
+    {
+      "name": "@TotalRecords",
+      "type": "INT",
+      "direction": "OUTPUT",
+      "default_value": null,
+      "description": "Returns total count of matching records (before pagination)",
+      "required": false,
+      "validation": null
+    }
+  ],
+  
+  "tables_accessed": [
+    {
+      "name": "Customers",
+      "schema": "dbo",
+      "operation": "SELECT",
+      "columns": ["CustomerID", "CustomerName", "Email", "CustomerType"],
+      "join_type": "INNER JOIN",
+      "estimated_rows": 50000
+    },
+    {
+      "name": "Orders",
+      "schema": "dbo", 
+      "operation": "SELECT",
+      "columns": ["OrderID", "CustomerID", "OrderDate", "TotalAmount", "Status", "ShippingAddress"],
+      "join_type": "PRIMARY",
+      "estimated_rows": 2500000
+    },
+    {
+      "name": "OrderItems",
+      "schema": "dbo",
+      "operation": "SELECT",
+      "columns": ["OrderItemID", "OrderID", "ProductID", "Quantity", "UnitPrice"],
+      "join_type": "LEFT JOIN",
+      "estimated_rows": 15000000
+    },
+    {
+      "name": "Products",
+      "schema": "dbo",
+      "operation": "SELECT", 
+      "columns": ["ProductID", "ProductName", "SKU"],
+      "join_type": "LEFT JOIN",
+      "estimated_rows": 10000
+    }
+  ],
+  
+  "dependencies": {
+    "upstream": [
+      {
+        "name": "SP_ValidateCustomer",
+        "type": "STORED PROCEDURE",
+        "purpose": "Validates CustomerID before query execution"
+      },
+      {
+        "name": "fn_GetBusinessDate",
+        "type": "FUNCTION",
+        "purpose": "Returns adjusted business date for date calculations"
+      }
+    ],
+    "downstream": [
+      {
+        "name": "vw_OrderSummary",
+        "type": "VIEW",
+        "purpose": "Aggregates order data for reporting"
+      },
+      {
+        "name": "SP_GenerateOrderReport",
+        "type": "STORED PROCEDURE",
+        "purpose": "Generates PDF reports using order data"
+      }
+    ]
+  },
+  
+  "performance": {
+    "execution_plan": "Uses IX_Orders_CustomerID_OrderDate clustered index seek",
+    "avg_execution_time_ms": 45,
+    "avg_logical_reads": 1250,
+    "avg_physical_reads": 12,
+    "estimated_rows_returned": 50,
+    "last_execution": "2025-12-30T14:30:00Z"
+  },
+  
+  "security": {
+    "execute_permission": "db_datareader, OrderManagement_Users",
+    "row_level_security": false,
+    "data_masking": ["Customers.Email"],
+    "sensitive_columns": ["ShippingAddress"]
+  },
+  
+  "change_history": [
+    {
+      "version": "2.3.1",
+      "date": "2025-12-20",
+      "author": "jane.doe",
+      "description": "Added pagination parameters for improved performance"
+    },
+    {
+      "version": "2.3.0",
+      "date": "2025-11-15",
+      "author": "john.smith",
+      "description": "Added OrderItems and Products joins for line item details"
+    },
+    {
+      "version": "2.2.0",
+      "date": "2025-08-01",
+      "author": "john.smith",
+      "description": "Added @OrderStatus filter parameter"
+    },
+    {
+      "version": "2.1.0",
+      "date": "2025-05-10",
+      "author": "mike.wilson",
+      "description": "Optimized index usage, added @TotalRecords output"
+    }
+  ],
+  
+  "usage_examples": [
+    {
+      "title": "Get all orders for a specific customer",
+      "code": "EXEC dbo.SP_GetCustomerOrders @CustomerID = 12345;"
+    },
+    {
+      "title": "Get orders within date range",
+      "code": "EXEC dbo.SP_GetCustomerOrders\n    @StartDate = '2025-01-01',\n    @EndDate = '2025-12-31';"
+    },
+    {
+      "title": "Paginated results with total count",
+      "code": "DECLARE @Total INT;\nEXEC dbo.SP_GetCustomerOrders\n    @CustomerID = 12345,\n    @PageNumber = 1,\n    @PageSize = 25,\n    @TotalRecords = @Total OUTPUT;\nSELECT @Total AS TotalMatchingRecords;"
+    }
+  ],
+  
+  "notes": [
+    "Consider adding index hint if query plan regresses after statistics update",
+    "Monitor execution time during end-of-month processing when order volume peaks",
+    "CustomerType filter may be added in future version per Product backlog item PBI-4521"
+  ],
+  
+  "related_documentation": [
+    {
+      "title": "Customer Data Model",
+      "path": "/docs/data-models/customer-model.docx"
+    },
+    {
+      "title": "Order Processing Workflow",
+      "path": "/docs/workflows/order-processing.docx"
+    }
+  ],
+  
+  "jinja_template_notes": {
+    "simple_variable": "{{ procedure_name }}",
+    "nested_access": "{{ metadata.created_by }}",
+    "loop_example": "{% for param in parameters %}{{ param.name }}{% endfor %}",
+    "conditional_example": "{% if param.required %}*Required*{% endif %}",
+    "table_row_loop": "{%tr for table in tables_accessed %}...{%tr endfor %}",
+    "rich_text_note": "Use {{r variable }} for RichText objects",
+    "image_note": "Use {{ erd_diagram }} for InlineImage objects"
+  }
+}
